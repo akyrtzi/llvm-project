@@ -10,7 +10,7 @@
 
 #include "llvm/Support/Format.h"
 #include "llvm/TableGen/Record.h"
-#include "../CodeGenInstruction.h"
+#include "CodeGenInstruction.h"
 
 using namespace llvm;
 

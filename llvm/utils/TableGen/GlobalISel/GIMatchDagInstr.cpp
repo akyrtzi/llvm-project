@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "GIMatchDagInstr.h"
-#include "../CodeGenInstruction.h"
+#include "CodeGenInstruction.h"
 #include "GIMatchDag.h"
 #include "llvm/TableGen/Record.h"
 

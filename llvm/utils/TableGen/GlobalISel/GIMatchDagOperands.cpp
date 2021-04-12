@@ -8,7 +8,7 @@
 
 #include "GIMatchDagOperands.h"
 
-#include "../CodeGenInstruction.h"
+#include "CodeGenInstruction.h"
 
 using namespace llvm;
 

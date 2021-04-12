@@ -9,7 +9,7 @@ function(tablegen project ofn)
   endif()
 
   # Use depfile instead of globbing arbitrary *.td(s) for Ninja.
-  if(CMAKE_GENERATOR STREQUAL "Ninja")
+  if(CMAKE_GENERATOR STREQUAL "Ninja" AND NOT LLVM_TABLEGEN_DISABLE_DEPFILE)
     # Make output path relative to build.ninja, assuming located on
     # ${CMAKE_BINARY_DIR}.
     # CMake emits build targets as relative paths but Ninja doesn't identify

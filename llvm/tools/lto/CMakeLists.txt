@@ -19,7 +19,7 @@ set(SOURCES
   lto.cpp
   )
 
-set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/lto.exports)
+set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/liblto.exports)
 
 add_llvm_library(LTO SHARED INSTALL_WITH_TOOLCHAIN ${SOURCES} DEPENDS
     intrinsics_gen)

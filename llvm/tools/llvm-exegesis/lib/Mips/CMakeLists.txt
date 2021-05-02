@@ -1,6 +1,7 @@
 include_directories(
   ${LLVM_MAIN_SRC_DIR}/lib/Target/Mips
   ${LLVM_BINARY_DIR}/lib/Target/Mips
+  "${CMAKE_CURRENT_SOURCE_DIR}/.."
   )
 
 add_library(LLVMExegesisMips

@@ -15,7 +15,7 @@
 #ifndef LLVM_TOOLS_LLVM_EXEGESIS_LIB_X86_X86COUNTER_H
 #define LLVM_TOOLS_LLVM_EXEGESIS_LIB_X86_X86COUNTER_H
 
-#include "../PerfHelper.h"
+#include "PerfHelper.h"
 #include "llvm/Support/Error.h"
 
 // FIXME: Use appropriate wrappers for poll.h and mman.h

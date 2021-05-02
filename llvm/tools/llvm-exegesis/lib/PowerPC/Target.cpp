@@ -6,7 +6,7 @@
 //
 // The PowerPC ExegesisTarget.
 //===----------------------------------------------------------------------===//
-#include "../Target.h"
+#include "Target.h"
 #include "PPC.h"
 #include "PPCRegisterInfo.h"
 

@@ -5,12 +5,12 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-#include "../Target.h"
+#include "Target.h"
 
-#include "../Error.h"
-#include "../ParallelSnippetGenerator.h"
-#include "../SerialSnippetGenerator.h"
-#include "../SnippetGenerator.h"
+#include "Error.h"
+#include "ParallelSnippetGenerator.h"
+#include "SerialSnippetGenerator.h"
+#include "SnippetGenerator.h"
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "MCTargetDesc/X86MCTargetDesc.h"
 #include "X86.h"

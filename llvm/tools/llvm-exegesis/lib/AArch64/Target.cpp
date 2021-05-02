@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
-#include "../Target.h"
+#include "Target.h"
 #include "AArch64.h"
 #include "AArch64RegisterInfo.h"
 

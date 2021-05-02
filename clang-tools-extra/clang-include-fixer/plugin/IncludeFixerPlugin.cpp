@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../IncludeFixer.h"
-#include "../YamlSymbolIndex.h"
+#include "IncludeFixer.h"
+#include "YamlSymbolIndex.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/Parse/ParseAST.h"

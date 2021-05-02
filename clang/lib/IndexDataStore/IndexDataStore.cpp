@@ -9,7 +9,7 @@
 
 #include "clang/Index/IndexDataStore.h"
 #include "clang/DirectoryWatcher/DirectoryWatcher.h"
-#include "../lib/Index/IndexDataStoreUtils.h"
+#include "IndexDataStoreUtils.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/FileSystem.h"

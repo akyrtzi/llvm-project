@@ -6,7 +6,7 @@
 #include "llvm/Support/Process.h"
 #include <sstream>
 
-#include "../RemoteJITUtils.h"
+#include "RemoteJITUtils.h"
 
 using namespace llvm;
 using namespace llvm::orc;

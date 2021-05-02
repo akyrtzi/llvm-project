@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyModule.h"
-#include "../ClangTidyModuleRegistry.h"
-#include "../readability/ElseAfterReturnCheck.h"
-#include "../readability/NamespaceCommentCheck.h"
-#include "../readability/QualifiedAutoCheck.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
+#include "readability/ElseAfterReturnCheck.h"
+#include "readability/NamespaceCommentCheck.h"
+#include "readability/QualifiedAutoCheck.h"
 #include "HeaderGuardCheck.h"
 #include "IncludeOrderCheck.h"
 #include "PreferIsaOrDynCastInConditionalsCheck.h"

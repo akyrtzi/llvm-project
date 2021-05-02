@@ -8,11 +8,11 @@
 
 #include "UnnecessaryValueParamCheck.h"
 
-#include "../utils/DeclRefExprUtils.h"
-#include "../utils/FixItHintUtils.h"
-#include "../utils/Matchers.h"
-#include "../utils/OptionsUtils.h"
-#include "../utils/TypeTraits.h"
+#include "utils/DeclRefExprUtils.h"
+#include "utils/FixItHintUtils.h"
+#include "utils/Matchers.h"
+#include "utils/OptionsUtils.h"
+#include "utils/TypeTraits.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"

@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MODERNIZE_RAW_STRING_LITERAL_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MODERNIZE_RAW_STRING_LITERAL_H
 
-#include "../ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
 #include <bitset>
 
 namespace clang {

@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANGD_TIDYPROVIDER_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANGD_TIDYPROVIDER_H
 
-#include "../clang-tidy/ClangTidyOptions.h"
+#include "ClangTidy/ClangTidyOptions.h"
 #include "support/ThreadsafeFS.h"
 #include "llvm/ADT/FunctionExtras.h"
 #include "llvm/ADT/STLExtras.h"

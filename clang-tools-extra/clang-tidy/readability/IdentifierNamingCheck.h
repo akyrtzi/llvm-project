@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_READABILITY_IDENTIFIERNAMINGCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_READABILITY_IDENTIFIERNAMINGCHECK_H
 
-#include "../utils/RenamerClangTidyCheck.h"
+#include "utils/RenamerClangTidyCheck.h"
 #include "llvm/ADT/Optional.h"
 namespace clang {
 

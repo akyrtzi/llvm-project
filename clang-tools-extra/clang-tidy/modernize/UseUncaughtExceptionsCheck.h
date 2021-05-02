@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MODERNIZE_USE_UNCAUGHT_EXCEPTIONS_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MODERNIZE_USE_UNCAUGHT_EXCEPTIONS_H
 
-#include "../ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {

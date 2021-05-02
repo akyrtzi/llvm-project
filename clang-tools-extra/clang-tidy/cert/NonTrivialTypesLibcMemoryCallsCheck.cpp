@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "NonTrivialTypesLibcMemoryCallsCheck.h"
-#include "../utils/OptionsUtils.h"
+#include "utils/OptionsUtils.h"
 #include "clang/AST/Decl.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"

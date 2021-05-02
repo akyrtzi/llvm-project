@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CloexecInotifyInit1Check.h"
-#include "../utils/ASTUtils.h"
+#include "utils/ASTUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "DeleteNullPointerCheck.h"
-#include "../utils/LexerUtils.h"
+#include "utils/LexerUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"

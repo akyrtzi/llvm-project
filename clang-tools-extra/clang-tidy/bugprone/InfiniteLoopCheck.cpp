@@ -10,7 +10,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Analysis/Analyses/ExprMutationAnalyzer.h"
-#include "../utils/Aliasing.h"
+#include "utils/Aliasing.h"
 
 using namespace clang::ast_matchers;
 using clang::tidy::utils::hasPtrOrReferenceInFunc;

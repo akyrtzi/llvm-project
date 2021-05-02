@@ -15,9 +15,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangTidyMain.h"
-#include "../ClangTidy.h"
-#include "../ClangTidyForceLinker.h"
-#include "../GlobList.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyForceLinker.h"
+#include "ClangTidy/GlobList.h"
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/Process.h"

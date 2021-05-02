@@ -24,8 +24,8 @@ namespace utils {
 ///
 /// ``IncludeInserter`` can be used in clang-tidy checks in the following way:
 /// \code
-/// #include "../ClangTidyCheck.h"
-/// #include "../utils/IncludeInserter.h"
+/// #include "ClangTidy/ClangTidyCheck.h"
+/// #include "utils/IncludeInserter.h"
 ///
 /// namespace clang {
 /// namespace tidy {

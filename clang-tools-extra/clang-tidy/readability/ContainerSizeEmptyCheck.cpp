@@ -6,8 +6,8 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ContainerSizeEmptyCheck.h"
-#include "../utils/ASTUtils.h"
-#include "../utils/Matchers.h"
+#include "utils/ASTUtils.h"
+#include "utils/Matchers.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Lex/Lexer.h"

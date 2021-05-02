@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_LLVM_TWINELOCALCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_LLVM_TWINELOCALCHECK_H
 
-#include "../ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {

@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyModule.h"
-#include "../ClangTidyModuleRegistry.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
 #include "FasterStringFindCheck.h"
 #include "ForRangeCopyCheck.h"
 #include "ImplicitConversionInLoopCheck.h"

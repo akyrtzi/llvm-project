@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_ALTERA_KERNEL_NAME_RESTRICTION_CHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_ALTERA_KERNEL_NAME_RESTRICTION_CHECK_H
 
-#include "../ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {

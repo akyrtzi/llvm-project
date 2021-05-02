@@ -15,7 +15,7 @@
 #include "clang/Analysis/CFG.h"
 #include "clang/Lex/Lexer.h"
 
-#include "../utils/ExprSequence.h"
+#include "utils/ExprSequence.h"
 
 using namespace clang::ast_matchers;
 using namespace clang::tidy::utils;

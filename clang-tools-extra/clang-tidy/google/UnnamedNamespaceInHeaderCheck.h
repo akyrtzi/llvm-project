@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_GOOGLE_UNNAMEDNAMESPACEINHEADERCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_GOOGLE_UNNAMEDNAMESPACEINHEADERCHECK_H
 
-#include "../ClangTidyCheck.h"
-#include "../utils/FileExtensionsUtils.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "utils/FileExtensionsUtils.h"
 
 namespace clang {
 namespace tidy {

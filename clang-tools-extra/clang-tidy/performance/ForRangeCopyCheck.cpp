@@ -7,11 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "ForRangeCopyCheck.h"
-#include "../utils/DeclRefExprUtils.h"
-#include "../utils/FixItHintUtils.h"
-#include "../utils/Matchers.h"
-#include "../utils/OptionsUtils.h"
-#include "../utils/TypeTraits.h"
+#include "utils/DeclRefExprUtils.h"
+#include "utils/FixItHintUtils.h"
+#include "utils/Matchers.h"
+#include "utils/OptionsUtils.h"
+#include "utils/TypeTraits.h"
 #include "clang/Analysis/Analyses/ExprMutationAnalyzer.h"
 #include "clang/Basic/Diagnostic.h"
 

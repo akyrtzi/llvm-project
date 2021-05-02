@@ -10,7 +10,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"
-#include "../utils/LexerUtils.h"
+#include "utils/LexerUtils.h"
 
 using namespace clang::ast_matchers;
 

@@ -7,9 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ParsedAST.h"
-#include "../clang-tidy/ClangTidyCheck.h"
-#include "../clang-tidy/ClangTidyDiagnosticConsumer.h"
-#include "../clang-tidy/ClangTidyModuleRegistry.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyDiagnosticConsumer.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
 #include "AST.h"
 #include "Compiler.h"
 #include "Diagnostics.h"
@@ -57,7 +57,7 @@
 // Force the linker to link in Clang-tidy modules.
 // clangd doesn't support the static analyzer.
 #define CLANG_TIDY_DISABLE_STATIC_ANALYZER_CHECKS
-#include "../clang-tidy/ClangTidyForceLinker.h"
+#include "ClangTidy/ClangTidyForceLinker.h"
 
 namespace clang {
 namespace clangd {

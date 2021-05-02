@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PosixReturnCheck.h"
-#include "../utils/Matchers.h"
+#include "utils/Matchers.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"

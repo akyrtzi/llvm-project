@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_READABILITY_UPPERCASELITERALSUFFIXCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_READABILITY_UPPERCASELITERALSUFFIXCHECK_H
 
-#include "../ClangTidyCheck.h"
-#include "../utils/OptionsUtils.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "utils/OptionsUtils.h"
 
 namespace clang {
 namespace tidy {

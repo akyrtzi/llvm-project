@@ -6,7 +6,11 @@ set(LLVM_LINK_COMPONENTS
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/clang-tidy-config.h.cmake
   ${CMAKE_CURRENT_BINARY_DIR}/clang-tidy-config.h)
-include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
+include_directories(BEFORE
+  "${CMAKE_CURRENT_BINARY_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
 
 add_clang_library(clangTidy
   ClangTidy.cpp

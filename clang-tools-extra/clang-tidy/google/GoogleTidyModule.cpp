@@ -6,12 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyModule.h"
-#include "../ClangTidyModuleRegistry.h"
-#include "../readability/BracesAroundStatementsCheck.h"
-#include "../readability/FunctionSizeCheck.h"
-#include "../readability/NamespaceCommentCheck.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
+#include "readability/BracesAroundStatementsCheck.h"
+#include "readability/FunctionSizeCheck.h"
+#include "readability/NamespaceCommentCheck.h"
 #include "AvoidCStyleCastsCheck.h"
 #include "AvoidNSObjectNewCheck.h"
 #include "AvoidThrowingObjCExceptionCheck.h"

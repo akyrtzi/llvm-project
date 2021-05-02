@@ -14,12 +14,12 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ClangTidy.h"
-#include "ClangTidyCheck.h"
-#include "ClangTidyDiagnosticConsumer.h"
-#include "ClangTidyModuleRegistry.h"
-#include "ClangTidyProfiling.h"
-#include "ExpandModularHeadersPPCallbacks.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyDiagnosticConsumer.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
+#include "ClangTidy/ClangTidyProfiling.h"
+#include "ClangTidy/ExpandModularHeadersPPCallbacks.h"
 #include "clang-tidy-config.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"

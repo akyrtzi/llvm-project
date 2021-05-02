@@ -7,9 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "ProTypeMemberInitCheck.h"
-#include "../utils/LexerUtils.h"
-#include "../utils/Matchers.h"
-#include "../utils/TypeTraits.h"
+#include "utils/LexerUtils.h"
+#include "utils/Matchers.h"
+#include "utils/TypeTraits.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"

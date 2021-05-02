@@ -6,10 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyModule.h"
-#include "../ClangTidyModuleRegistry.h"
-#include "../google/UnnamedNamespaceInHeaderCheck.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
+#include "google/UnnamedNamespaceInHeaderCheck.h"
 #include "DefaultArgumentsCallsCheck.h"
 #include "DefaultArgumentsDeclarationsCheck.h"
 #include "MultipleInheritanceCheck.h"

@@ -15,9 +15,9 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ClangTidyDiagnosticConsumer.h"
-#include "ClangTidyOptions.h"
-#include "GlobList.h"
+#include "ClangTidy/ClangTidyDiagnosticConsumer.h"
+#include "ClangTidy/ClangTidyOptions.h"
+#include "ClangTidy/GlobList.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDiagnostic.h"
 #include "clang/AST/Attr.h"

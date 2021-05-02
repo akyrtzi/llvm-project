@@ -10,8 +10,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "ClangTidyModule.h"
-#include "ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {

@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CLANGTIDY_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CLANGTIDY_H
 
-#include "ClangTidyDiagnosticConsumer.h"
-#include "ClangTidyOptions.h"
+#include "ClangTidy/ClangTidyDiagnosticConsumer.h"
+#include "ClangTidy/ClangTidyOptions.h"
 #include <memory>
 #include <vector>
 

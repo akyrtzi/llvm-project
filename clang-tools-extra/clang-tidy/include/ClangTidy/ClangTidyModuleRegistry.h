@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CLANGTIDYMODULEREGISTRY_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_CLANGTIDYMODULEREGISTRY_H
 
-#include "ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModule.h"
 #include "llvm/Support/Registry.h"
 
 namespace clang {

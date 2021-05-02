@@ -6,9 +6,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyModule.h"
-#include "../ClangTidyModuleRegistry.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
 #include "TemporaryObjectsCheck.h"
 
 using namespace clang::ast_matchers;

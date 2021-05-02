@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "FunctionCognitiveComplexityCheck.h"
-#include "../ClangTidyDiagnosticConsumer.h"
+#include "ClangTidy/ClangTidyDiagnosticConsumer.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/Expr.h"

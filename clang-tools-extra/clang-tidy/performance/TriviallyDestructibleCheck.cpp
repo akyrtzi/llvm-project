@@ -7,8 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "TriviallyDestructibleCheck.h"
-#include "../utils/LexerUtils.h"
-#include "../utils/Matchers.h"
+#include "utils/LexerUtils.h"
+#include "utils/Matchers.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 

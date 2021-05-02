@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_LLVM_HEADERGUARDCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_LLVM_HEADERGUARDCHECK_H
 
-#include "../utils/HeaderGuard.h"
+#include "utils/HeaderGuard.h"
 
 namespace clang {
 namespace tidy {

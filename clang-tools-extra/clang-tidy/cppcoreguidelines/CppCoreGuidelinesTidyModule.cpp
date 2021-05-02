@@ -6,14 +6,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyModule.h"
-#include "../ClangTidyModuleRegistry.h"
-#include "../misc/NonPrivateMemberVariablesInClassesCheck.h"
-#include "../misc/UnconventionalAssignOperatorCheck.h"
-#include "../modernize/AvoidCArraysCheck.h"
-#include "../modernize/UseOverrideCheck.h"
-#include "../readability/MagicNumbersCheck.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyModule.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
+#include "misc/NonPrivateMemberVariablesInClassesCheck.h"
+#include "misc/UnconventionalAssignOperatorCheck.h"
+#include "modernize/AvoidCArraysCheck.h"
+#include "modernize/UseOverrideCheck.h"
+#include "readability/MagicNumbersCheck.h"
 #include "AvoidGotoCheck.h"
 #include "AvoidNonConstGlobalVariablesCheck.h"
 #include "InitVariablesCheck.h"

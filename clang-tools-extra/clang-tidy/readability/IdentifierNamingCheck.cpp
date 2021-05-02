@@ -8,7 +8,7 @@
 
 #include "IdentifierNamingCheck.h"
 
-#include "../GlobList.h"
+#include "ClangTidy/GlobList.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"

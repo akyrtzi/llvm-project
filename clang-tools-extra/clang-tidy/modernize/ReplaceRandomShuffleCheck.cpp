@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ReplaceRandomShuffleCheck.h"
-#include "../utils/FixItHintUtils.h"
+#include "utils/FixItHintUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Frontend/CompilerInstance.h"

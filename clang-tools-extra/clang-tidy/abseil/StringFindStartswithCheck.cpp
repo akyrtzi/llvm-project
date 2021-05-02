@@ -8,7 +8,7 @@
 
 #include "StringFindStartswithCheck.h"
 
-#include "../utils/OptionsUtils.h"
+#include "utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/Frontend/CompilerInstance.h"

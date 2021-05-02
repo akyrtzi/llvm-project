@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "StaticObjectExceptionCheck.h"
-#include "../utils/Matchers.h"
+#include "utils/Matchers.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 

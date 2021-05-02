@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "UseEmplaceCheck.h"
-#include "../utils/OptionsUtils.h"
+#include "utils/OptionsUtils.h"
 using namespace clang::ast_matchers;
 
 namespace clang {

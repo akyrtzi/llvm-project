@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "RedundantBranchConditionCheck.h"
-#include "../utils/Aliasing.h"
+#include "utils/Aliasing.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Analysis/Analyses/ExprMutationAnalyzer.h"

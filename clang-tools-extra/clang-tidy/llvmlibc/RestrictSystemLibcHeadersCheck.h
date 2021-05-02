@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_LLVMLIBC_RESTRICTSYSTEMLIBCHEADERSCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_LLVMLIBC_RESTRICTSYSTEMLIBCHEADERSCHECK_H
 
-#include "../ClangTidyCheck.h"
-#include "../portability/RestrictSystemIncludesCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "portability/RestrictSystemIncludesCheck.h"
 
 namespace clang {
 namespace tidy {

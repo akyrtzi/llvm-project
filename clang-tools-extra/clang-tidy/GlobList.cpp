@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "GlobList.h"
+#include "ClangTidy/GlobList.h"
 #include "llvm/ADT/SmallString.h"
 
 using namespace clang;

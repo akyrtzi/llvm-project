@@ -70,7 +70,7 @@ def write_header(module_path, module, namespace, check_name, check_name_camel):
 #ifndef %(header_guard)s
 #define %(header_guard)s
 
-#include "../ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
 
 namespace clang {
 namespace tidy {

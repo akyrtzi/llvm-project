@@ -12,7 +12,7 @@
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Token.h"
 
-#include "../utils/LexerUtils.h"
+#include "utils/LexerUtils.h"
 
 using namespace clang::ast_matchers;
 

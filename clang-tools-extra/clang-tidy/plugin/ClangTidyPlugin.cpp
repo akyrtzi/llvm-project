@@ -6,10 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../ClangTidy.h"
-#include "../ClangTidyDiagnosticConsumer.h"
-#include "../ClangTidyForceLinker.h"
-#include "../ClangTidyModule.h"
+#include "ClangTidy/ClangTidy.h"
+#include "ClangTidy/ClangTidyDiagnosticConsumer.h"
+#include "ClangTidy/ClangTidyForceLinker.h"
+#include "ClangTidy/ClangTidyModule.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
 #include "clang/Frontend/MultiplexConsumer.h"

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "TidyProvider.h"
-#include "../clang-tidy/ClangTidyModuleRegistry.h"
+#include "ClangTidy/ClangTidyModuleRegistry.h"
 #include "Config.h"
 #include "support/FileCache.h"
 #include "support/Logger.h"

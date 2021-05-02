@@ -7,8 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "OwningMemoryCheck.h"
-#include "../utils/Matchers.h"
-#include "../utils/OptionsUtils.h"
+#include "utils/Matchers.h"
+#include "utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include <string>

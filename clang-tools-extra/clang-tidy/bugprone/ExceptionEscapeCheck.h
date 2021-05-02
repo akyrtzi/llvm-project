@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_BUGPRONE_EXCEPTION_ESCAPE_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_BUGPRONE_EXCEPTION_ESCAPE_H
 
-#include "../ClangTidyCheck.h"
-#include "../utils/ExceptionAnalyzer.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "utils/ExceptionAnalyzer.h"
 #include "llvm/ADT/StringSet.h"
 
 namespace clang {

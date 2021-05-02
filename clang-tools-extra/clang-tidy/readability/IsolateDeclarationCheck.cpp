@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "IsolateDeclarationCheck.h"
-#include "../utils/LexerUtils.h"
+#include "utils/LexerUtils.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 
 using namespace clang::ast_matchers;

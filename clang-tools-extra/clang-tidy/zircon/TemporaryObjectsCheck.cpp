@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "TemporaryObjectsCheck.h"
-#include "../utils/OptionsUtils.h"
+#include "utils/OptionsUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "llvm/ADT/STLExtras.h"

@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_OBJC_NSINVOCATIONARGUMENTLIFETIMECHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_OBJC_NSINVOCATIONARGUMENTLIFETIMECHECK_H
 
-#include "../ClangTidyCheck.h"
+#include "ClangTidy/ClangTidyCheck.h"
 #include "clang/Basic/LangStandard.h"
 
 namespace clang {

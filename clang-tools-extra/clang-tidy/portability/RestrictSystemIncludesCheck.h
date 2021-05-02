@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_PORTABILITY_RESTRICTINCLUDESSCHECK_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_PORTABILITY_RESTRICTINCLUDESSCHECK_H
 
-#include "../ClangTidyCheck.h"
-#include "../GlobList.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "ClangTidy/GlobList.h"
 #include "clang/Lex/PPCallbacks.h"
 
 namespace clang {

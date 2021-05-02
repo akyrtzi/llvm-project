@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ExpandModularHeadersPPCallbacks.h"
+#include "ClangTidy/ExpandModularHeadersPPCallbacks.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Frontend/CompilerInstance.h"

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "StringCompareCheck.h"
-#include "../utils/FixItHintUtils.h"
+#include "utils/FixItHintUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Tooling/FixIt.h"

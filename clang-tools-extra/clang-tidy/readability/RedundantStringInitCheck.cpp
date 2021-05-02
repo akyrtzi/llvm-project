@@ -7,8 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "RedundantStringInitCheck.h"
-#include "../utils/Matchers.h"
-#include "../utils/OptionsUtils.h"
+#include "utils/Matchers.h"
+#include "utils/OptionsUtils.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
 
 using namespace clang::ast_matchers;

@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_OPTIONUTILS_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_MISC_OPTIONUTILS_H
 
-#include "../ClangTidy.h"
+#include "ClangTidy/ClangTidy.h"
 
 namespace clang {
 namespace tidy {

@@ -42,7 +42,10 @@ if(MSVC AND NOT CLANG_CL)
  set_source_files_properties(CompileCommands.cpp PROPERTIES COMPILE_FLAGS -wd4130) # disables C4130: logical operation on address of string constant
 endif()
 
-include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}/../clang-tidy")
+include_directories(BEFORE
+  "${CMAKE_CURRENT_BINARY_DIR}/../clang-tidy"
+  "${CMAKE_CURRENT_SOURCE_DIR}/../clang-tidy/include"
+)
 
 add_clang_library(clangDaemon
   AST.cpp

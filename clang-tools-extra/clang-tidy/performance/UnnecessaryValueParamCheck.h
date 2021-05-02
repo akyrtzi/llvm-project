@@ -9,8 +9,8 @@
 #ifndef LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_PERFORMANCE_UNNECESSARY_VALUE_PARAM_H
 #define LLVM_CLANG_TOOLS_EXTRA_CLANG_TIDY_PERFORMANCE_UNNECESSARY_VALUE_PARAM_H
 
-#include "../ClangTidyCheck.h"
-#include "../utils/IncludeInserter.h"
+#include "ClangTidy/ClangTidyCheck.h"
+#include "utils/IncludeInserter.h"
 #include "clang/Analysis/Analyses/ExprMutationAnalyzer.h"
 
 namespace clang {

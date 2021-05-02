@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ConstReturnTypeCheck.h"
-#include "../utils/LexerUtils.h"
+#include "utils/LexerUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Basic/SourceLocation.h"

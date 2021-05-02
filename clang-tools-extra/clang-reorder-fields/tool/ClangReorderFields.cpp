@@ -11,7 +11,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "../ReorderFieldsAction.h"
+#include "ReorderFieldsAction.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileManager.h"

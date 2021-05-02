@@ -158,6 +158,7 @@ function(add_llvm_symbol_exports target_name export_file)
   set_property(DIRECTORY APPEND
     PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${native_export_file})
 
+  set_property(TARGET ${target_name} APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${native_export_file}")
   add_dependencies(${target_name} ${target_name}_exports)
 
   # Add dependency to *_exports later -- CMake issue 14747

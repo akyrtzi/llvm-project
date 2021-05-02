@@ -45,4 +45,4 @@ extern "C" PIPSQUEAK_EXPORT void TestOrder(std::vector<std::string> &V) {
 }
 
 #define PIPSQUEAK_TESTA_RETURN "LibCall"
-#include "ExportedFuncs.cpp"
+#include "ExportedFuncs.inc"

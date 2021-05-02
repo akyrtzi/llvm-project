@@ -1,4 +1,4 @@
-//===- llvm/unittest/Support/DynamicLibrary/ExportedFuncs.cpp -------------===//
+//===- llvm/unittest/Support/DynamicLibrary/ExportedFuncs.inc -------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,4 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ExportedFuncs.inc"
+#include "PipSqueak.h"
+
+#ifndef PIPSQUEAK_TESTA_RETURN
+#define PIPSQUEAK_TESTA_RETURN "ProcessCall"
+#endif
+
+extern "C" PIPSQUEAK_EXPORT const char *TestA() { return PIPSQUEAK_TESTA_RETURN; }

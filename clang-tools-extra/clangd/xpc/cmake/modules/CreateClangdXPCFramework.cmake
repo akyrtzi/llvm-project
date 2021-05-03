@@ -57,6 +57,7 @@ macro(create_clangd_xpc_framework target name)
      "${CLANGD_FRAMEWORK_LOCATION}/${name}"
 
     DEPENDS
+      "$<TARGET_FILE:${target}>"
       "${CLANGD_XPC_BINARY_DIR}/${name}.Info.plist"
       "${CLANGD_XPC_BINARY_DIR}/${name}Service.Info.plist"
       clangd

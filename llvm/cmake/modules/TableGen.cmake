@@ -96,6 +96,13 @@ function(tablegen project ofn)
   set(tablegen_exe ${${project}_TABLEGEN_EXE})
   set(tablegen_depends ${${project}_TABLEGEN_TARGET} ${tablegen_exe})
 
+  if (LLVM_OPTIMIZED_TABLEGEN_VIA_NINJA_MULTI_CONFIG)
+    set(tablegen_exe "${CMAKE_BINARY_DIR}/Release/bin/${${project}_TABLEGEN_EXE}")
+    # Only depend on the release executable; if we also depend on the target
+    # we'll build for both release and debug.
+    set(tablegen_depends ${tablegen_exe})
+  endif()
+
   add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${ofn}
     COMMAND ${tablegen_exe} ${ARGN} -I ${CMAKE_CURRENT_SOURCE_DIR}
     ${tblgen_includes}

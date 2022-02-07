@@ -1285,8 +1285,21 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   // specified Declarator for the function.
   Sema::SkipBodyInfo SkipBody;
 
-  bool shouldDeferParsing = getLangOpts().ProcessBodyOnce &&
-    D.getDeclSpec().getConstexprSpecifier() == ConstexprSpecKind::Unspecified;
+  auto calcDeferParsing = [&]()->bool {
+    if (D.getDeclSpec().getConstexprSpecifier() != ConstexprSpecKind::Unspecified)
+      return false;
+    if (TemplateParameterLists *TPLs = TemplateInfo.TemplateParams) {
+      for (const TemplateParameterList *TPL : *TPLs) {
+        for (const NamedDecl *ND : TPL->asArray())
+          if (auto *TTP = dyn_cast<TemplateTypeParmDecl>(ND))
+            if (TTP->isParameterPack())
+              return false;
+      }
+    }
+    return getLangOpts().ProcessBodyOnce;
+  };
+
+  bool shouldDeferParsing = calcDeferParsing();
 
   Decl *Res;
   if (shouldDeferParsing) {

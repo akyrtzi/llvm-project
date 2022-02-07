@@ -10288,21 +10288,31 @@ Sema::ActOnReenterTemplateSpecScope(Decl *D,
 
   // In order to get name lookup right, reenter template scopes in order from
   // outermost to innermost.
-  SmallVector<std::pair<const TemplateArgumentList *, ArrayRef<TemplateArgument>>, 4> ParameterLists;
+  SmallVector<std::pair<const TemplateArgumentList *, const TemplateParameterList *>, 4> ParameterLists;
   DeclContext *LookupDC = dyn_cast<DeclContext>(D);
 
   if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
     if (const TemplateArgumentList *TAL = FD->getTemplateSpecializationArgs()) {
-      ArrayRef<TemplateArgument> injArgs = FD->getPrimaryTemplate()->getInjectedTemplateArgs();
+      const TemplateParameterList *injArgs = FD->getPrimaryTemplate()->getTemplateParameters();
       ParameterLists.push_back(std::make_pair(TAL, injArgs));
     }
+  } else if (ClassTemplateSpecializationDecl *CD = dyn_cast<ClassTemplateSpecializationDecl>(D)) {
+    llvm::PointerUnion<ClassTemplateDecl *,
+    ClassTemplatePartialSpecializationDecl *> spec = CD->getSpecializedTemplateOrPartial();
+    const TemplateParameterList *injArgs;
+    if (ClassTemplateDecl *td = spec.dyn_cast<ClassTemplateDecl *>()) {
+      injArgs = td->getTemplateParameters();
+    } else {
+      injArgs = spec.get<ClassTemplatePartialSpecializationDecl *>()->getTemplateParameters();
+    }
+    ParameterLists.push_back(std::make_pair(&CD->getTemplateInstantiationArgs(), injArgs));
   }
 
   unsigned Count = 0;
   Scope *InnermostTemplateScope = nullptr;
   for (const auto &pair : ParameterLists) {
     const TemplateArgumentList *TAL = pair.first;
-    ArrayRef<TemplateArgument> injected = pair.second;
+    const TemplateParameterList *injected = pair.second;
     // Ignore explicit specializations; they don't contribute to the template
     // depth.
     if (TAL->size() == 0)
@@ -10310,21 +10320,24 @@ Sema::ActOnReenterTemplateSpecScope(Decl *D,
 
     InnermostTemplateScope = EnterScope();
 
-    assert(TAL->size() == injected.size());
+    assert(TAL->size() == injected->size());
     for (unsigned i = 0, e = TAL->size(); i != e; ++i) {
       const TemplateArgument &arg = TAL->get(i);
-      const TemplateArgument &inj = injected[i];
+      const NamedDecl *inj = injected->getParam(i);
+      if (!inj->getIdentifier())
+        continue;
       NamedDecl *parm = nullptr;
       if (arg.getKind() == TemplateArgument::Type) {
-        const TemplateTypeParmType *TTP = cast<TemplateTypeParmType>(inj.getAsType().getTypePtr());
         TypeSourceInfo *TInfo = Context.getTrivialTypeSourceInfo(arg.getAsType());
-        parm = TypeAliasDecl::Create(Context, LookupDC, SourceLocation(), SourceLocation(), TTP->getIdentifier(), TInfo);
+        parm = TypeAliasDecl::Create(Context, LookupDC, SourceLocation(), SourceLocation(), inj->getIdentifier(), TInfo);
       } else if (arg.getKind() == TemplateArgument::Integral) {
-        DeclRefExpr *E = cast<DeclRefExpr>(inj.getAsExpr());
-        parm = EnumConstantDecl::Create(Context, LookupDC, E->getDecl()->getIdentifier(), E->getType(), E, arg.getAsIntegral());
+        parm = EnumConstantDecl::Create(Context, LookupDC, inj->getIdentifier(), arg.getIntegralType(), /*expr*/nullptr, arg.getAsIntegral());
       }
-      InnermostTemplateScope->AddDecl(parm);
-      IdResolver.AddDecl(parm);
+      if (parm) {
+        parm->setAccess(AS_private);
+        InnermostTemplateScope->AddDecl(parm);
+        IdResolver.AddDecl(parm);
+      }
     }
     ++Count;
   }

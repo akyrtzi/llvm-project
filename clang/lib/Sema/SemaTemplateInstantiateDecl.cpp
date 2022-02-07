@@ -5017,7 +5017,19 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     RebuildTypeSourceInfoForDefaultSpecialMembers();
     SetDeclDefaulted(Function, PatternDecl->getLocation());
   } else {
-    if (getLangOpts().ProcessBodyOnce && !Function->isConstexpr()) {
+    auto shouldDeferParsing = [&]()->bool {
+      if (Function->isConstexpr())
+        return false;
+      if (const TemplateArgumentList *TAL = Function->getTemplateSpecializationArgs()) {
+        for (const TemplateArgument &arg : TAL->asArray()) {
+          // FIXME: Allow deferred parsing for pack template arguments.
+          if (arg.getKind() == TemplateArgument::Pack)
+            return false;
+        }
+      }
+      return getLangOpts().ProcessBodyOnce;
+    };
+    if (shouldDeferParsing()) {
       Function->CachedBodyTokens = PatternDef->CachedBodyTokens;
     } else {
 

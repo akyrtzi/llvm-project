@@ -1491,8 +1491,8 @@ void CodeGenFunction::EmitDestructorBody(FunctionArgList &Args) {
   case Dtor_Deleting: llvm_unreachable("already handled deleting case");
 
   case Dtor_Complete:
-    assert((Body || getTarget().getCXXABI().isMicrosoft()) &&
-           "can't emit a dtor without a body for non-Microsoft ABIs");
+//    assert((Body || getTarget().getCXXABI().isMicrosoft()) &&
+//           "can't emit a dtor without a body for non-Microsoft ABIs");
 
     // Enter the cleanup scopes for virtual bases.
     EnterDtorCleanups(Dtor, Dtor_Complete);

@@ -1380,6 +1380,13 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
       return false;
     if (FD->isConstexpr())
       return false;
+    if (const TemplateArgumentList *TAL = FD->getTemplateSpecializationArgs()) {
+      for (const TemplateArgument &arg : TAL->asArray()) {
+        // FIXME: Allow deferred parsing for pack template arguments.
+        if (arg.getKind() == TemplateArgument::Pack)
+          return false;
+      }
+    }
     return getLangOpts().ProcessBodyOnce;
   };
   if (shouldParseDeferredBody()) {

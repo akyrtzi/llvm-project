@@ -535,7 +535,21 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
       FD = TF->getTemplatedDecl();
     else
       FD = cast<FunctionDecl>(LM.D);
-    if (!FD->isConstexpr()) {
+
+    auto shouldDeferParsing = [&]()->bool {
+      if (FD->isConstexpr())
+        return false;
+      if (auto *TF = dyn_cast<FunctionTemplateDecl>(LM.D)) {
+        for (const TemplateArgument &arg : TF->getInjectedTemplateArgs()) {
+          // FIXME: Allow deferred parsing for pack template arguments.
+          if (arg.getKind() == TemplateArgument::Pack)
+            return false;
+        }
+      }
+      return true;
+    };
+
+    if (shouldDeferParsing()) {
       Actions.MarkAsLateParsedFunction(FD, LM.Toks);
       return;
     }

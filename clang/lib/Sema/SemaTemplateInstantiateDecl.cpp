@@ -2065,6 +2065,8 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(
     Function->setRangeEnd(D->getSourceRange().getEnd());
   }
 
+//  Function->CachedBodyTokens = D->CachedBodyTokens;
+
   if (D->isInlined())
     Function->setImplicitlyInline();
 
@@ -2442,6 +2444,8 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
         D->UsesFPIntrin(), D->isInlineSpecified(), D->getConstexprKind(),
         D->getEndLoc(), TrailingRequiresClause);
   }
+
+  Method->CachedBodyTokens = D->CachedBodyTokens;
 
   if (D->isInlined())
     Method->setImplicitlyInline();
@@ -4891,7 +4895,7 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
 
   // Note, we should never try to instantiate a deleted function template.
   assert((Pattern || PatternDecl->isDefaulted() ||
-          PatternDecl->hasSkippedBody()) &&
+          PatternDecl->hasSkippedBody() || PatternDecl->hasDeferredParsedBody()) &&
          "unexpected kind of function template definition");
 
   // C++1y [temp.explicit]p10:
@@ -5013,6 +5017,10 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     RebuildTypeSourceInfoForDefaultSpecialMembers();
     SetDeclDefaulted(Function, PatternDecl->getLocation());
   } else {
+    if (getLangOpts().ProcessBodyOnce && !Function->isConstexpr()) {
+      Function->CachedBodyTokens = PatternDef->CachedBodyTokens;
+    } else {
+
     MultiLevelTemplateArgumentList TemplateArgs =
       getTemplateInstantiationArgs(Function, nullptr, false, PatternDecl);
 
@@ -5066,6 +5074,7 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
       Listener->FunctionDefinitionInstantiated(Function);
 
     savedContext.pop();
+    }
   }
 
   DeclGroupRef DG(Function);

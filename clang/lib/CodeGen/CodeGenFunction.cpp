@@ -33,7 +33,9 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Parse/Parser.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/CAS/CASDB.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Dominators.h"
@@ -1311,6 +1313,17 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   const FunctionDecl *FD = cast<FunctionDecl>(GD.getDecl());
   CurGD = GD;
 
+  if (getLangOpts().CodegenBodyOnce && !Fn->hasInternalLinkage() && !Fn->hasPrivateLinkage()) {
+    llvm::cas::CASDB &CAS = CGM.getCAS();
+    auto node = llvm::cantFail(CAS.createNode(None, Fn->getName()));
+    auto CASRes = CAS.getCachedResult(node);
+    if (CASRes) {
+      Fn->setLinkage(llvm::GlobalValue::ExternalLinkage);
+      return;
+    }
+    llvm::cantFail(CAS.putCachedResult(node, node));
+  }
+
   FunctionArgList Args;
   QualType ResTy = BuildFunctionArgList(GD, Args);
 
@@ -1356,6 +1369,10 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
     Fn->setSubprogram(nullptr);
     // Disable debug info indefinitely for this function
     DebugInfo = nullptr;
+  }
+
+  if (getLangOpts().ProcessBodyOnce && !FD->isConstexpr()) {
+    CGM.getSema().ParseDeferredParsedFunction(const_cast<FunctionDecl *>(FD), CGM.getParser());
   }
 
   // The function might not have a body if we're generating thunks for a

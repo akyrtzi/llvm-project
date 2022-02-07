@@ -6125,6 +6125,16 @@ def fcas_fs_working_directory : Separate<["-"], "fcas-fs-working-directory">,
     ShouldParseIf<!strconcat("!", fcas_fs.KeyPath, ".empty()")>,
     MarshallingInfoString<CASOpts<"CASFileSystemWorkingDirectory">>;
 
+defm process_body_once : BoolFOption<"process-body-once",
+  LangOpts<"ProcessBodyOnce">, DefaultFalse,
+  PosFlag<SetTrue, [CC1Option], "Parse and codegen function bodies once">,
+  NegFlag<SetFalse>>;
+
+defm codegen_body_once : BoolFOption<"codegen-body-once",
+  LangOpts<"CodegenBodyOnce">, DefaultFalse,
+  PosFlag<SetTrue, [CC1Option], "Codegen function bodies once">,
+  NegFlag<SetFalse>>;
+
 defm fcas_fs_cache_results : BoolFOption<"cas-fs-result-cache",
     CASOpts<"CASFileSystemResultCache">, DefaultFalse,
     PosFlag<SetTrue, [], "When using -fcas-fs, use a result cache.">,

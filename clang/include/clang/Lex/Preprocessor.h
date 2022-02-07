@@ -975,6 +975,10 @@ public:
   /// preprocessor.
   PreprocessorOptions &getPreprocessorOpts() const { return *PPOpts; }
 
+  std::shared_ptr<PreprocessorOptions> getPreprocessorOptsPtr() {
+    return PPOpts;
+  }
+
   DiagnosticsEngine &getDiagnostics() const { return *Diags; }
   void setDiagnostics(DiagnosticsEngine &D) { Diags = &D; }
 

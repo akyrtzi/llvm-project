@@ -4959,6 +4959,12 @@ EnumConstantDecl *EnumConstantDecl::Create(ASTContext &C, EnumDecl *CD,
   return new (C, CD) EnumConstantDecl(CD, L, Id, T, E, V);
 }
 
+EnumConstantDecl *EnumConstantDecl::Create(ASTContext &C, DeclContext *DC,
+                                           IdentifierInfo *Id, QualType T,
+                                           Expr *E, const llvm::APSInt &V) {
+  return new (C, DC) EnumConstantDecl(DC, SourceLocation(), Id, T, E, V);
+}
+
 EnumConstantDecl *
 EnumConstantDecl::CreateDeserialized(ASTContext &C, unsigned ID) {
   return new (C, ID) EnumConstantDecl(nullptr, SourceLocation(), nullptr,

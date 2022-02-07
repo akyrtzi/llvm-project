@@ -44,10 +44,14 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/Version.h"
 #include "clang/CodeGen/ConstantInitBuilder.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Parse/Parser.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/CAS/CASDB.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/DataLayout.h"
@@ -212,6 +216,26 @@ CodeGenModule::CodeGenModule(ASTContext &C, const HeaderSearchOptions &HSO,
 }
 
 CodeGenModule::~CodeGenModule() {}
+
+void CodeGenModule::setSema(Sema &S) {
+  if (!getLangOpts().ProcessBodyOnce && !getLangOpts().CodegenBodyOnce)
+    return;
+
+  TheSema = &S;
+  this->CAS =  llvm::cantFail(llvm::cas::createOnDiskCAS("/tmp/cas-test"));
+
+  // Create the Preprocessor.
+  ModLoader.reset(new TrivialModuleLoader());
+  Preprocessor &PrevPP = S.getPreprocessor();
+  PP.reset(new Preprocessor(
+      PrevPP.getPreprocessorOptsPtr(), S.getDiagnostics(),
+      const_cast<LangOptions &>(S.getLangOpts()), S.getSourceManager(),
+      PrevPP.getHeaderSearchInfo(), *ModLoader,
+      /*IdentifierInfoLookup=*/nullptr,
+      /*OwnsHeaderSearch=*/false, TranslationUnitKind::TU_Prefix));
+  PP->Initialize(PrevPP.getTargetInfo(), PrevPP.getAuxTargetInfo());
+  TheParser.reset(new Parser(*PP, S, /*SkipFunctionBodies=*/false));
+}
 
 void CodeGenModule::createObjCRuntime() {
   // This is just isGNUFamily(), but we want to force implementors of

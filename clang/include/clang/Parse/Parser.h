@@ -1149,6 +1149,8 @@ public:
   /// Re-enter the template scopes for a declaration that might be a template.
   unsigned ReenterTemplateScopes(MultiParseScope &S, Decl *D);
 
+  unsigned ReenterTemplateSpecScopes(MultiParseScope &S, Decl *D);
+
 private:
   /// RAII object used to modify the scope flags for the current scope.
   class ParseScopeFlags {
@@ -1527,6 +1529,10 @@ private:
   void LexTemplateFunctionForLateParsing(CachedTokens &Toks);
   void ParseLateTemplatedFuncDef(LateParsedTemplate &LPT);
 
+public:
+  void ParseLateParsedFuncDef(FunctionDecl *FD);
+
+private:
   static void LateTemplateParserCallback(void *P, LateParsedTemplate &LPT);
 
   Sema::ParsingClassState

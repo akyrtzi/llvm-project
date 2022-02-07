@@ -10943,6 +10943,15 @@ void Sema::MarkAsLateParsedTemplate(FunctionDecl *FD, Decl *FnD,
   FD->setLateTemplateParsed(true);
 }
 
+void Sema::MarkAsLateParsedFunction(FunctionDecl *FD, CachedTokens &Toks) {
+  Token *ToksPtr = Context.Allocate<Token>(Toks.size() + 1);
+  std::uninitialized_copy(Toks.begin(), Toks.end(), ToksPtr);
+  Token &LastTok = ToksPtr[Toks.size()];
+  LastTok.startToken();
+  LastTok.setKind(tok::eof);
+  FD->CachedBodyTokens = llvm::makeArrayRef(ToksPtr, Toks.size() + 1);
+}
+
 void Sema::UnmarkAsLateParsedTemplate(FunctionDecl *FD) {
   if (!FD)
     return;

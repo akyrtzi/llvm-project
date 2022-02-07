@@ -290,6 +290,9 @@ BENIGN_LANGOPT(DebuggerSupport , 1, 0, "debugger support")
 BENIGN_LANGOPT(DebuggerCastResultToId, 1, 0, "for 'po' in the debugger, cast the result to id if it is of unknown type")
 BENIGN_LANGOPT(DebuggerObjCLiteral , 1, 0, "debugger Objective-C literals and subscripting support")
 
+BENIGN_LANGOPT(ProcessBodyOnce, 1, 0, "process function bodies once")
+BENIGN_LANGOPT(CodegenBodyOnce, 1, 0, "codegen function bodies once")
+
 BENIGN_LANGOPT(SpellChecking , 1, 1, "spell-checking")
 LANGOPT(SinglePrecisionConstants , 1, 0, "treating double-precision floating point constants as single precision constants")
 LANGOPT(FastRelaxedMath , 1, 0, "OpenCL fast relaxed math")

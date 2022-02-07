@@ -213,6 +213,7 @@ namespace clang {
   class IndirectFieldDecl;
   struct DeductionFailureInfo;
   class TemplateSpecCandidateSet;
+  class Parser;
 
 namespace sema {
   class AccessedEntity;
@@ -912,6 +913,8 @@ public:
     LateTemplateParserCleanup = LTPCleanup;
     OpaqueParser = P;
   }
+
+  void ParseDeferredParsedFunction(FunctionDecl *FD, Parser &P);
 
   class DelayedDiagnostics;
 
@@ -7257,6 +7260,8 @@ public:
   void ActOnReenterCXXMethodParameter(Scope *S, ParmVarDecl *Param);
   unsigned ActOnReenterTemplateScope(Decl *Template,
                                      llvm::function_ref<Scope *()> EnterScope);
+  unsigned ActOnReenterTemplateSpecScope(Decl *Template,
+                                     llvm::function_ref<Scope *()> EnterScope);
   void ActOnStartDelayedMemberDeclarations(Scope *S, Decl *Record);
   void ActOnStartDelayedCXXMethodDeclaration(Scope *S, Decl *Method);
   void ActOnDelayedCXXMethodParameter(Scope *S, Decl *Param);
@@ -7265,6 +7270,7 @@ public:
   void ActOnFinishDelayedMemberInitializers(Decl *Record);
   void MarkAsLateParsedTemplate(FunctionDecl *FD, Decl *FnD,
                                 CachedTokens &Toks);
+  void MarkAsLateParsedFunction(FunctionDecl *FD, CachedTokens &Toks);
   void UnmarkAsLateParsedTemplate(FunctionDecl *FD);
   bool IsInsideALocalClassWithinATemplateFunction();
 

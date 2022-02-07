@@ -13,7 +13,7 @@
 #ifndef LLVM_CLANG_CODEGEN_MODULEBUILDER_H
 #define LLVM_CLANG_CODEGEN_MODULEBUILDER_H
 
-#include "clang/AST/ASTConsumer.h"
+#include "clang/Sema/SemaConsumer.h"
 
 namespace llvm {
   class Constant;
@@ -40,8 +40,8 @@ namespace CodeGen {
 /// The primary public interface to the Clang code generator.
 ///
 /// This is not really an abstract interface.
-class CodeGenerator : public ASTConsumer {
-  virtual void anchor();
+class CodeGenerator : public SemaConsumer {
+  virtual void anchor() override;
 
 public:
   /// Return an opaque reference to the CodeGenModule object, which can

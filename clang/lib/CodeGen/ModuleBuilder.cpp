@@ -161,6 +161,8 @@ namespace {
         Builder->AppendLinkerOptions(Opt);
     }
 
+    void InitializeSema(Sema &S) override { Builder->setSema(S); }
+
     void HandleCXXStaticMemberVarInstantiation(VarDecl *VD) override {
       if (Diags.hasErrorOccurred())
         return;

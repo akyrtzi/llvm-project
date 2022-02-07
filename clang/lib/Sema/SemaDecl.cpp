@@ -33,6 +33,7 @@
 #include "clang/Lex/Lexer.h" // TODO: Extract static functions to fix layering.
 #include "clang/Lex/ModuleLoader.h" // TODO: Sema shouldn't depend on Lex
 #include "clang/Lex/Preprocessor.h" // Included for isCodeCompletionEnabled()
+#include "clang/Parse/Parser.h"
 #include "clang/Sema/CXXFieldCollector.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/DelayedDiagnostic.h"
@@ -18823,4 +18824,13 @@ bool Sema::shouldIgnoreInHostDeviceCheck(FunctionDecl *Callee) {
   // known-emitted.
   return LangOpts.CUDA && !LangOpts.CUDAIsDevice &&
          IdentifyCUDATarget(Callee) == CFT_Global;
+}
+
+void Sema::ParseDeferredParsedFunction(FunctionDecl *FD, Parser &P) {
+  assert(FD->hasDeferredParsedBody());
+  P.ParseLateParsedFuncDef(FD);
+
+  if (FD->getTemplateSpecializationKind() == TSK_ImplicitInstantiation) {
+    PerformPendingInstantiations();
+  }
 }

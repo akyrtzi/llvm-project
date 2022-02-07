@@ -529,6 +529,18 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 }
 
 void Parser::ParseLexedMethodDef(LexedMethod &LM) {
+  if (getLangOpts().ProcessBodyOnce) {
+    FunctionDecl *FD;
+    if (auto *TF = dyn_cast<FunctionTemplateDecl>(LM.D))
+      FD = TF->getTemplatedDecl();
+    else
+      FD = cast<FunctionDecl>(LM.D);
+    if (!FD->isConstexpr()) {
+      Actions.MarkAsLateParsedFunction(FD, LM.Toks);
+      return;
+    }
+  }
+
   // If this is a member template, introduce the template parameter scope.
   ReenterTemplateScopeRAII InFunctionTemplateScope(*this, LM.D);
 

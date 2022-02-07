@@ -10280,6 +10280,64 @@ Sema::ActOnReenterTemplateScope(Decl *D,
   return Count;
 }
 
+unsigned
+Sema::ActOnReenterTemplateSpecScope(Decl *D,
+                                llvm::function_ref<Scope *()> EnterScope) {
+  if (!D)
+    return 0;
+
+  // In order to get name lookup right, reenter template scopes in order from
+  // outermost to innermost.
+  SmallVector<std::pair<const TemplateArgumentList *, ArrayRef<TemplateArgument>>, 4> ParameterLists;
+  DeclContext *LookupDC = dyn_cast<DeclContext>(D);
+
+  if (FunctionDecl *FD = dyn_cast<FunctionDecl>(D)) {
+    if (const TemplateArgumentList *TAL = FD->getTemplateSpecializationArgs()) {
+      ArrayRef<TemplateArgument> injArgs = FD->getPrimaryTemplate()->getInjectedTemplateArgs();
+      ParameterLists.push_back(std::make_pair(TAL, injArgs));
+    }
+  }
+
+  unsigned Count = 0;
+  Scope *InnermostTemplateScope = nullptr;
+  for (const auto &pair : ParameterLists) {
+    const TemplateArgumentList *TAL = pair.first;
+    ArrayRef<TemplateArgument> injected = pair.second;
+    // Ignore explicit specializations; they don't contribute to the template
+    // depth.
+    if (TAL->size() == 0)
+      continue;
+
+    InnermostTemplateScope = EnterScope();
+
+    assert(TAL->size() == injected.size());
+    for (unsigned i = 0, e = TAL->size(); i != e; ++i) {
+      const TemplateArgument &arg = TAL->get(i);
+      const TemplateArgument &inj = injected[i];
+      NamedDecl *parm = nullptr;
+      if (arg.getKind() == TemplateArgument::Type) {
+        const TemplateTypeParmType *TTP = cast<TemplateTypeParmType>(inj.getAsType().getTypePtr());
+        TypeSourceInfo *TInfo = Context.getTrivialTypeSourceInfo(arg.getAsType());
+        parm = TypeAliasDecl::Create(Context, LookupDC, SourceLocation(), SourceLocation(), TTP->getIdentifier(), TInfo);
+      } else if (arg.getKind() == TemplateArgument::Integral) {
+        DeclRefExpr *E = cast<DeclRefExpr>(inj.getAsExpr());
+        parm = EnumConstantDecl::Create(Context, LookupDC, E->getDecl()->getIdentifier(), E->getType(), E, arg.getAsIntegral());
+      }
+      InnermostTemplateScope->AddDecl(parm);
+      IdResolver.AddDecl(parm);
+    }
+    ++Count;
+  }
+
+  // Associate the new template scopes with the corresponding entities.
+  if (InnermostTemplateScope) {
+    assert(LookupDC && "no enclosing DeclContext for template lookup");
+    EnterTemplatedContext(InnermostTemplateScope, LookupDC);
+  }
+
+  return Count;
+}
+
 void Sema::ActOnStartDelayedMemberDeclarations(Scope *S, Decl *RecordD) {
   if (!RecordD) return;
   AdjustDeclIfTemplate(RecordD);

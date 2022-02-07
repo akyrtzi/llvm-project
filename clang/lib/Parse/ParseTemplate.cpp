@@ -32,6 +32,13 @@ unsigned Parser::ReenterTemplateScopes(MultiParseScope &S, Decl *D) {
   });
 }
 
+unsigned Parser::ReenterTemplateSpecScopes(MultiParseScope &S, Decl *D) {
+  return Actions.ActOnReenterTemplateSpecScope(D, [&] {
+    S.Enter(Scope::TemplateParamScope);
+    return Actions.getCurScope();
+  });
+}
+
 /// Parse a template declaration, explicit instantiation, or
 /// explicit specialization.
 Decl *Parser::ParseDeclarationStartingWithTemplate(
@@ -1738,6 +1745,69 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
       Actions.UnmarkAsLateParsedTemplate(FunD);
     } else
       Actions.ActOnFinishFunctionBody(LPT.D, nullptr);
+  }
+}
+
+void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
+  // Destroy TemplateIdAnnotations when we're done, if possible.
+  DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
+
+  // Track template parameter depth.
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+
+  // To restore the context after late parsing.
+  Sema::ContextRAII GlobalSavedContext(
+      Actions, Actions.Context.getTranslationUnitDecl());
+
+  MultiParseScope Scopes(*this);
+
+  // Get the list of DeclContexts to reenter.
+  SmallVector<DeclContext *, 4> DeclContextsToReenter;
+  for (DeclContext *DC = FunD; DC && !DC->isTranslationUnit();
+       DC = DC->getLexicalParent())
+    DeclContextsToReenter.push_back(DC);
+
+  // Reenter scopes from outermost to innermost.
+  for (DeclContext *DC : reverse(DeclContextsToReenter)) {
+    CurTemplateDepthTracker.addDepth(
+        ReenterTemplateSpecScopes(Scopes, cast<Decl>(DC)));
+    Scopes.Enter(Scope::DeclScope);
+    // We'll reenter the function context itself below.
+    if (DC != FunD)
+      Actions.PushDeclContext(Actions.getCurScope(), DC);
+  }
+
+  assert(FunD->hasDeferredParsedBody());
+  PP.EnterTokenStream(FunD->CachedBodyTokens, true, /*IsReinject*/ true);
+  FunD->CachedBodyTokens = ArrayRef<Token>();
+
+  // Consume the previously pushed token.
+  ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);
+  assert(Tok.isOneOf(tok::l_brace, tok::colon, tok::kw_try) &&
+         "Inline method not starting with '{', ':' or 'try'");
+
+  // Parse the method body. Function body parsing code is similar enough
+  // to be re-used for method bodies as well.
+  ParseScope FnScope(this, Scope::FnScope | Scope::DeclScope |
+                               Scope::CompoundStmtScope);
+
+  // Recreate the containing function DeclContext.
+  Sema::ContextRAII FunctionSavedContext(Actions, FunD->getLexicalParent());
+
+  Actions.ActOnStartOfFunctionDef(getCurScope(), FunD);
+
+  if (Tok.is(tok::kw_try)) {
+    ParseFunctionTryBlock(FunD, FnScope);
+  } else {
+    if (Tok.is(tok::colon))
+      ParseConstructorInitializer(FunD);
+    else
+      Actions.ActOnDefaultCtorInitializers(FunD);
+
+    if (Tok.is(tok::l_brace)) {
+      ParseFunctionStatementBody(FunD, FnScope);
+    } else
+      Actions.ActOnFinishFunctionBody(FunD, nullptr);
   }
 }
 

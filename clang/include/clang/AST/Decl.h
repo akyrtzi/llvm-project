@@ -76,6 +76,8 @@ class TypeAliasTemplateDecl;
 class UnresolvedSetImpl;
 class VarTemplateDecl;
 
+class Token;
+
 /// The top declaration context.
 class TranslationUnitDecl : public Decl,
                             public DeclContext,
@@ -1899,6 +1901,10 @@ private:
   /// no formals.
   ParmVarDecl **ParamInfo = nullptr;
 
+public:
+  ArrayRef<Token> CachedBodyTokens;
+
+private:
   /// The active member of this union is determined by
   /// FunctionDeclBits.HasDefaultedFunctionInfo.
   union {
@@ -2161,7 +2167,7 @@ public:
   /// Returns whether this specific declaration of the function has a body.
   bool doesThisDeclarationHaveABody() const {
     return (!FunctionDeclBits.HasDefaultedFunctionInfo && Body) ||
-           isLateTemplateParsed();
+           hasDeferredParsedBody() || isLateTemplateParsed();
   }
 
   void setBody(Stmt *B);
@@ -2193,6 +2199,8 @@ public:
   bool isLateTemplateParsed() const {
     return FunctionDeclBits.IsLateTemplateParsed;
   }
+
+  bool hasDeferredParsedBody() const { return !CachedBodyTokens.empty(); }
 
   /// State that this templated function will be late parsed.
   void setLateTemplateParsed(bool ILT = true) {
@@ -3065,6 +3073,10 @@ public:
 
   static EnumConstantDecl *Create(ASTContext &C, EnumDecl *DC,
                                   SourceLocation L, IdentifierInfo *Id,
+                                  QualType T, Expr *E,
+                                  const llvm::APSInt &V);
+  static EnumConstantDecl *Create(ASTContext &C, DeclContext *DC,
+                                  IdentifierInfo *Id,
                                   QualType T, Expr *E,
                                   const llvm::APSInt &V);
   static EnumConstantDecl *CreateDeserialized(ASTContext &C, unsigned ID);

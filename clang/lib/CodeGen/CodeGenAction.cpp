@@ -102,10 +102,10 @@ namespace clang {
         });
     }
 
-  class BackendConsumer : public ASTConsumer {
+  class BackendConsumer : public SemaConsumer {
     using LinkModule = CodeGenAction::LinkModule;
 
-    virtual void anchor();
+    virtual void anchor() override;
     DiagnosticsEngine &Diags;
     BackendAction Action;
     const HeaderSearchOptions &HeaderSearchOpts;
@@ -214,6 +214,8 @@ namespace clang {
       if (TimerIsEnabled)
         LLVMIRGeneration.stopTimer();
     }
+
+    void InitializeSema(Sema &S) override { Gen->InitializeSema(S); }
 
     bool HandleTopLevelDecl(DeclGroupRef D) override {
       PrettyStackTraceDecl CrashInfo(*D.begin(), SourceLocation(),

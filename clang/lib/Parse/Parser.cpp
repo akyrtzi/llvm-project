@@ -56,7 +56,7 @@ Parser::Parser(Preprocessor &pp, Sema &actions, bool skipFunctionBodies)
   SkipFunctionBodies = pp.isCodeCompletionEnabled() || skipFunctionBodies;
   Tok.startToken();
   Tok.setKind(tok::eof);
-  Actions.CurScope = nullptr;
+  //  Actions.CurScope = nullptr;
   NumCachedScopes = 0;
   CurParsedObjCImpl = nullptr;
 
@@ -1284,11 +1284,25 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   // Tell the actions module that we have entered a function definition with the
   // specified Declarator for the function.
   Sema::SkipBodyInfo SkipBody;
-  Decl *Res = Actions.ActOnStartOfFunctionDef(getCurScope(), D,
-                                              TemplateInfo.TemplateParams
-                                                  ? *TemplateInfo.TemplateParams
-                                                  : MultiTemplateParamsArg(),
-                                              &SkipBody);
+
+  bool shouldDeferParsing = getLangOpts().ProcessBodyOnce &&
+    D.getDeclSpec().getConstexprSpecifier() == ConstexprSpecKind::Unspecified;
+
+  Decl *Res;
+  if (shouldDeferParsing) {
+    D.setFunctionDefinitionKind(FunctionDefinitionKind::Definition);
+    Scope *ParentScope = getCurScope()->getParent();
+    Res = Actions.HandleDeclarator(ParentScope, D,
+                                   TemplateInfo.TemplateParams
+                                       ? *TemplateInfo.TemplateParams
+                                       : MultiTemplateParamsArg());
+  } else {
+    Res = Actions.ActOnStartOfFunctionDef(getCurScope(), D,
+                                          TemplateInfo.TemplateParams
+                                              ? *TemplateInfo.TemplateParams
+                                              : MultiTemplateParamsArg(),
+                                          &SkipBody);
+  }
 
   if (SkipBody.ShouldSkip) {
     SkipFunctionBody();
@@ -1312,6 +1326,10 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
       CurTemplateDepthTracker.addDepth(1);
 
   if (TryConsumeToken(tok::equal)) {
+    if (shouldDeferParsing) {
+      Actions.ActOnStartOfFunctionDef(getCurScope(), Res);
+    }
+
     assert(getLangOpts().CPlusPlus && "Only C++ function definitions have '='");
 
     bool Delete = false;
@@ -1352,6 +1370,15 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
     BodyScope.Exit();
     Actions.ActOnSkippedFunctionBody(Res);
     return Actions.ActOnFinishFunctionBody(Res, nullptr, false);
+  }
+
+  if (shouldDeferParsing) {
+    CachedTokens Toks;
+    LexTemplateFunctionForLateParsing(Toks);
+
+    FunctionDecl *FnD = Res->getAsFunction();
+    Actions.MarkAsLateParsedFunction(FnD, Toks);
+    return Res;
   }
 
   if (Tok.is(tok::kw_try))

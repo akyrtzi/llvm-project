@@ -1371,7 +1371,16 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
     DebugInfo = nullptr;
   }
 
-  if (getLangOpts().ProcessBodyOnce && !FD->isConstexpr()) {
+  auto shouldParseDeferredBody = [&]()->bool {
+    if (isa<CXXConstructorDecl>(FD) && GD.getCtorType() != Ctor_Base)
+      return false;
+    if (isa<CXXDestructorDecl>(FD) && GD.getDtorType() != Dtor_Base)
+      return false;
+    if (FD->isConstexpr())
+      return false;
+    return getLangOpts().ProcessBodyOnce;
+  };
+  if (shouldParseDeferredBody()) {
     CGM.getSema().ParseDeferredParsedFunction(const_cast<FunctionDecl *>(FD), CGM.getParser());
   }
 

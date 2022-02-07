@@ -1372,6 +1372,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   }
 
   auto shouldParseDeferredBody = [&]()->bool {
+    if (FD->isDefaulted())
+      return false;
     if (isa<CXXConstructorDecl>(FD) && GD.getCtorType() != Ctor_Base)
       return false;
     if (isa<CXXDestructorDecl>(FD) && GD.getDtorType() != Dtor_Base)

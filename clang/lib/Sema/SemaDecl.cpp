@@ -18826,7 +18826,8 @@ bool Sema::shouldIgnoreInHostDeviceCheck(FunctionDecl *Callee) {
          IdentifyCUDATarget(Callee) == CFT_Global;
 }
 
-void Sema::ParseDeferredParsedFunction(FunctionDecl *FD, Parser &P) {
+void Sema::ParseDeferredParsedFunction(FunctionDecl *FD) {
+  Parser &P = *(Parser*)OpaqueParser;
   assert(FD->hasDeferredParsedBody());
   P.ParseLateParsedFuncDef(FD);
 

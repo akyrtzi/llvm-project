@@ -582,6 +582,8 @@ void Parser::DestroyTemplateIds() {
 ///
 /// Note that in C, it is an error if there is no first declaration.
 bool Parser::ParseFirstTopLevelDecl(DeclGroupPtrTy &Result) {
+  Actions.SetLateTemplateParser(LateTemplateParserCallback, nullptr, this);
+
   Actions.ActOnStartOfTranslationUnit();
 
   // C11 6.9p1 says translation units must have at least one top-level

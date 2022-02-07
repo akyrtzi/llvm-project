@@ -77,8 +77,6 @@ class CXXDestructorDecl;
 class Module;
 class CoverageSourceInfo;
 class InitSegAttr;
-class Parser;
-class ModuleLoader;
 
 namespace CodeGen {
 
@@ -296,9 +294,6 @@ public:
 
 private:
   ASTContext &Context;
-  std::unique_ptr<ModuleLoader> ModLoader;
-  std::unique_ptr<Preprocessor> PP;
-  std::unique_ptr<Parser> TheParser;
   std::unique_ptr<llvm::cas::CASDB> CAS;
   Sema *TheSema = nullptr;
   const LangOptions &LangOpts;
@@ -585,11 +580,6 @@ public:
   Sema &getSema() {
     assert(TheSema);
     return *TheSema;
-  }
-
-  Parser &getParser() {
-    assert(TheParser);
-    return *TheParser;
   }
 
   llvm::cas::CASDB &getCAS() {

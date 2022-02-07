@@ -914,7 +914,7 @@ public:
     OpaqueParser = P;
   }
 
-  void ParseDeferredParsedFunction(FunctionDecl *FD, Parser &P);
+  void ParseDeferredParsedFunction(FunctionDecl *FD);
 
   class DelayedDiagnostics;
 

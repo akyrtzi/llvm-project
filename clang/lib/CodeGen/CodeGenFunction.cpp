@@ -33,7 +33,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Parse/Parser.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/CAS/CASDB.h"
 #include "llvm/Frontend/OpenMP/OMPIRBuilder.h"
@@ -1390,7 +1390,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
     return getLangOpts().ProcessBodyOnce;
   };
   if (shouldParseDeferredBody()) {
-    CGM.getSema().ParseDeferredParsedFunction(const_cast<FunctionDecl *>(FD), CGM.getParser());
+    CGM.getSema().ParseDeferredParsedFunction(const_cast<FunctionDecl *>(FD));
   }
 
   // The function might not have a body if we're generating thunks for a

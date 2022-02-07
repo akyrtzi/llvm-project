@@ -46,8 +46,6 @@
 #include "clang/CodeGen/ConstantInitBuilder.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include "clang/Parse/Parser.h"
-#include "clang/Sema/Sema.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -223,18 +221,6 @@ void CodeGenModule::setSema(Sema &S) {
 
   TheSema = &S;
   this->CAS =  llvm::cantFail(llvm::cas::createOnDiskCAS("/tmp/cas-test"));
-
-  // Create the Preprocessor.
-  ModLoader.reset(new TrivialModuleLoader());
-  Preprocessor &PrevPP = S.getPreprocessor();
-  PP.reset(new Preprocessor(
-      PrevPP.getPreprocessorOptsPtr(), S.getDiagnostics(),
-      const_cast<LangOptions &>(S.getLangOpts()), S.getSourceManager(),
-      PrevPP.getHeaderSearchInfo(), *ModLoader,
-      /*IdentifierInfoLookup=*/nullptr,
-      /*OwnsHeaderSearch=*/false, TranslationUnitKind::TU_Prefix));
-  PP->Initialize(PrevPP.getTargetInfo(), PrevPP.getAuxTargetInfo());
-  TheParser.reset(new Parser(*PP, S, /*SkipFunctionBodies=*/false));
 }
 
 void CodeGenModule::createObjCRuntime() {

@@ -1374,10 +1374,15 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   auto shouldParseDeferredBody = [&]()->bool {
     if (FD->isDefaulted())
       return false;
-    if (isa<CXXConstructorDecl>(FD) && GD.getCtorType() != Ctor_Base)
-      return false;
-    if (isa<CXXDestructorDecl>(FD) && GD.getDtorType() != Dtor_Base)
-      return false;
+    if (isa<CXXConstructorDecl>(FD)) {
+      if (GD.getCtorType() != Ctor_Base)
+        return false;
+      if (FD->isImplicit())
+        return false;
+    } else if (isa<CXXDestructorDecl>(FD)) {
+      if (GD.getDtorType() != Dtor_Base)
+        return false;
+    }
     if (FD->isConstexpr())
       return false;
     if (const TemplateArgumentList *TAL = FD->getTemplateSpecializationArgs()) {

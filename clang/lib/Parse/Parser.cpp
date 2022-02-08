@@ -1299,7 +1299,27 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
                                        : MultiTemplateParamsArg());
 
     FunctionDecl *FD = Res->getAsFunction();
-    deferredParsing = shouldDeferParsing(FD);
+    SmallVector<IdentifierInfo *, 2> PackArgs;
+    deferredParsing = shouldDeferParsing(FD, PackArgs);
+
+    if (deferredParsing && !PackArgs.empty()) {
+      CachedTokens Toks;
+      {
+        TentativeParsingAction PA(*this);
+        LexTemplateFunctionForLateParsing(Toks);
+        PA.Revert();
+      }
+
+      for (const Token &tok : Toks) {
+        if (tok.getKind() == tok::identifier) {
+          if (std::find(PackArgs.begin(), PackArgs.end(), tok.getIdentifierInfo()) != PackArgs.end()) {
+            deferredParsing = false;
+            break;
+          }
+        }
+      }
+    }
+
     if (!deferredParsing) {
       FD->setNonDeferrableBody(true);
       Actions.ActOnStartOfFunctionDef(getCurScope(), Res);

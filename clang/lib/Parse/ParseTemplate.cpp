@@ -1748,7 +1748,9 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
   }
 }
 
-bool Parser::shouldDeferParsing(FunctionDecl *FD) {
+bool Parser::shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo*> &packArgs) {
+  if (!getLangOpts().ProcessBodyOnce)
+    return false;
   if (FD->isConstexpr())
     return false;
   for (ParmVarDecl *Parm : FD->parameters()) {
@@ -1764,7 +1766,31 @@ bool Parser::shouldDeferParsing(FunctionDecl *FD) {
   }
   if (FD->getReturnType()->getContainedDeducedType())
     return false;
-  return getLangOpts().ProcessBodyOnce;
+
+  SmallVector<const TemplateParameterList *, 4> ParameterLists;
+
+  if (FunctionTemplateDecl *TD = FD->getDescribedFunctionTemplate()) {
+    const TemplateParameterList *injArgs = TD->getTemplateParameters();
+    ParameterLists.push_back(injArgs);
+  }
+
+  if (auto *MD = dyn_cast<CXXMethodDecl>(FD)) {
+    CXXRecordDecl *cls = MD->getParent();
+    if (ClassTemplatePartialSpecializationDecl *CD = dyn_cast<ClassTemplatePartialSpecializationDecl>(cls)) {
+      ParameterLists.push_back(CD->getTemplateParameters());
+    } else if (auto *td = cls->getDescribedClassTemplate()) {
+      ParameterLists.push_back(td->getTemplateParameters());
+    }
+  }
+
+  for (const TemplateParameterList *TAL : ParameterLists) {
+    for (const NamedDecl *ND : *TAL) {
+      if (ND->isParameterPack() && ND->getIdentifier())
+        packArgs.push_back(ND->getIdentifier());
+    }
+  }
+
+  return true;
 }
 
 void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {

@@ -1531,7 +1531,7 @@ private:
 
 public:
   void ParseLateParsedFuncDef(FunctionDecl *FD);
-  bool shouldDeferParsing(FunctionDecl *FD);
+  bool shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo*> &packArgs);
 
 private:
   static void LateTemplateParserCallback(void *P, LateParsedTemplate &LPT);

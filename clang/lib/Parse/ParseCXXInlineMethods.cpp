@@ -531,7 +531,20 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   if (getLangOpts().ProcessBodyOnce) {
     FunctionDecl *FD = LM.D->getAsFunction();
-    if (shouldDeferParsing(FD)) {
+    SmallVector<IdentifierInfo *, 2> PackArgs;
+    bool deferredParsing = shouldDeferParsing(FD, PackArgs);
+    if (deferredParsing && !PackArgs.empty()) {
+      for (const Token &tok : LM.Toks) {
+        if (tok.getKind() == tok::identifier) {
+          if (std::find(PackArgs.begin(), PackArgs.end(), tok.getIdentifierInfo()) != PackArgs.end()) {
+            deferredParsing = false;
+            break;
+          }
+        }
+      }
+    }
+
+    if (deferredParsing) {
       Actions.MarkAsLateParsedFunction(FD, LM.Toks);
       return;
     }

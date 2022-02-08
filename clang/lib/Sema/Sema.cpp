@@ -1391,8 +1391,8 @@ void Sema::ActOnEndOfTranslationUnit() {
   assert(ParsingInitForAutoVars.empty() &&
          "Didn't unmark var as having its initializer parsed");
 
-  if (!PP.isIncrementalProcessingEnabled())
-    TUScope = nullptr;
+//  if (!PP.isIncrementalProcessingEnabled())
+//    TUScope = nullptr;
 }
 
 

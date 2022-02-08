@@ -539,12 +539,10 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
     auto shouldDeferParsing = [&]()->bool {
       if (FD->isConstexpr())
         return false;
-      if (auto *TF = dyn_cast<FunctionTemplateDecl>(LM.D)) {
-        for (const TemplateArgument &arg : TF->getInjectedTemplateArgs()) {
-          // FIXME: Allow deferred parsing for pack template arguments.
-          if (arg.getKind() == TemplateArgument::Pack)
-            return false;
-        }
+      for (ParmVarDecl *Parm : FD->parameters()) {
+        // FIXME: Allow deferred parsing for pack template arguments.
+        if (Parm->isParameterPack())
+          return false;
       }
       return true;
     };

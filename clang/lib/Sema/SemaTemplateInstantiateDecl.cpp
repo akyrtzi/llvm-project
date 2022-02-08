@@ -5020,12 +5020,10 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     auto shouldDeferParsing = [&]()->bool {
       if (Function->isConstexpr())
         return false;
-      if (const TemplateArgumentList *TAL = Function->getTemplateSpecializationArgs()) {
-        for (const TemplateArgument &arg : TAL->asArray()) {
-          // FIXME: Allow deferred parsing for pack template arguments.
-          if (arg.getKind() == TemplateArgument::Pack)
-            return false;
-        }
+      for (ParmVarDecl *Parm : PatternDecl->parameters()) {
+        // FIXME: Allow deferred parsing for pack template arguments.
+        if (Parm->isParameterPack())
+          return false;
       }
       return getLangOpts().ProcessBodyOnce;
     };

@@ -1385,10 +1385,10 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
     }
     if (FD->isConstexpr())
       return false;
-    if (const TemplateArgumentList *TAL = FD->getTemplateSpecializationArgs()) {
-      for (const TemplateArgument &arg : TAL->asArray()) {
+    if (FunctionDecl *pattern = FD->getTemplateInstantiationPattern()) {
+      for (ParmVarDecl *Parm : pattern->parameters()) {
         // FIXME: Allow deferred parsing for pack template arguments.
-        if (arg.getKind() == TemplateArgument::Pack)
+        if (Parm->isParameterPack())
           return false;
       }
     }

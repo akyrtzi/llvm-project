@@ -1290,6 +1290,7 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   auto calcDeferParsing = [&]()->bool {
     if (D.getDeclSpec().getConstexprSpecifier() != ConstexprSpecKind::Unspecified)
       return false;
+    // FIXME: Allow deferred parsing for pack template arguments.
     if (TemplateParameterLists *TPLs = TemplateInfo.TemplateParams) {
       for (const TemplateParameterList *TPL : *TPLs) {
         for (const NamedDecl *ND : TPL->asArray())

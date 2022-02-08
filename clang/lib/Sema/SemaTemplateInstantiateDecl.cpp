@@ -2339,7 +2339,12 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
   }
 
   SmallVector<ParmVarDecl *, 4> Params;
-  TypeSourceInfo *TInfo = SubstFunctionType(D, Params);
+  FunctionDecl *DeclToGetParamsFrom;
+  if (auto DefD = D->getDefinition())
+    DeclToGetParamsFrom = DefD;
+  else
+    DeclToGetParamsFrom = D;
+  TypeSourceInfo *TInfo = SubstFunctionType(DeclToGetParamsFrom, Params);
   if (!TInfo)
     return nullptr;
   QualType T = adjustFunctionTypeForInstantiation(SemaRef.Context, D, TInfo);

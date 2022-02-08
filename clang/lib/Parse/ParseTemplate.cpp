@@ -1778,6 +1778,9 @@ void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
   }
 
   assert(FunD->hasDeferredParsedBody());
+  // Put the current token at the end of the new token stream so that it
+  // doesn't get lost.
+  const_cast<Token &>(FunD->CachedBodyTokens.data()[FunD->CachedBodyTokens.size()-1]) = Tok;
   PP.EnterTokenStream(FunD->CachedBodyTokens, true, /*IsReinject*/ true);
   FunD->CachedBodyTokens = ArrayRef<Token>();
 

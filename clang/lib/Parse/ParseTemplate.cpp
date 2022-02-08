@@ -1762,6 +1762,8 @@ bool Parser::shouldDeferParsing(FunctionDecl *FD) {
       }
     }
   }
+  if (FD->getReturnType()->getContainedDeducedType())
+    return false;
   return getLangOpts().ProcessBodyOnce;
 }
 

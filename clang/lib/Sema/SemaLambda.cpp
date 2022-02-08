@@ -395,6 +395,7 @@ CXXMethodDecl *Sema::startLambdaDefinition(CXXRecordDecl *Class,
       MethodType, MethodTypeInfo, SC_None, getCurFPFeatures().isFPConstrained(),
       /*isInline=*/true, ConstexprKind, EndLoc, TrailingRequiresClause);
   Method->setAccess(AS_public);
+  Method->setNonDeferrableBody(true);
   if (!TemplateParams)
     Class->addDecl(Method);
 

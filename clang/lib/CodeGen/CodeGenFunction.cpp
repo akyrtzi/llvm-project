@@ -1383,15 +1383,8 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
       if (GD.getDtorType() != Dtor_Base)
         return false;
     }
-    if (FD->isConstexpr())
+    if (FD->hasNonDeferrableBody())
       return false;
-    if (FunctionDecl *pattern = FD->getTemplateInstantiationPattern()) {
-      for (ParmVarDecl *Parm : pattern->parameters()) {
-        // FIXME: Allow deferred parsing for pack template arguments.
-        if (Parm->isParameterPack())
-          return false;
-      }
-    }
     return getLangOpts().ProcessBodyOnce;
   };
   if (shouldParseDeferredBody()) {

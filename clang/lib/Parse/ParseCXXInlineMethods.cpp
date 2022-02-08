@@ -530,27 +530,13 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 
 void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   if (getLangOpts().ProcessBodyOnce) {
-    FunctionDecl *FD;
-    if (auto *TF = dyn_cast<FunctionTemplateDecl>(LM.D))
-      FD = TF->getTemplatedDecl();
-    else
-      FD = cast<FunctionDecl>(LM.D);
-
-    auto shouldDeferParsing = [&]()->bool {
-      if (FD->isConstexpr())
-        return false;
-      for (ParmVarDecl *Parm : FD->parameters()) {
-        // FIXME: Allow deferred parsing for pack template arguments.
-        if (Parm->isParameterPack())
-          return false;
-      }
-      return true;
-    };
-
-    if (shouldDeferParsing()) {
+    FunctionDecl *FD = LM.D->getAsFunction();
+    if (shouldDeferParsing(FD)) {
       Actions.MarkAsLateParsedFunction(FD, LM.Toks);
       return;
     }
+
+    FD->setNonDeferrableBody(true);
   }
 
   // If this is a member template, introduce the template parameter scope.

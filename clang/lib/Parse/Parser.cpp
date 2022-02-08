@@ -1287,31 +1287,24 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   // specified Declarator for the function.
   Sema::SkipBodyInfo SkipBody;
 
-  auto calcDeferParsing = [&]()->bool {
-    if (D.getDeclSpec().getConstexprSpecifier() != ConstexprSpecKind::Unspecified)
-      return false;
-    // FIXME: Allow deferred parsing for pack template arguments.
-    if (TemplateParameterLists *TPLs = TemplateInfo.TemplateParams) {
-      for (const TemplateParameterList *TPL : *TPLs) {
-        for (const NamedDecl *ND : TPL->asArray())
-          if (auto *TTP = dyn_cast<TemplateTypeParmDecl>(ND))
-            if (TTP->isParameterPack())
-              return false;
-      }
-    }
-    return getLangOpts().ProcessBodyOnce;
-  };
-
-  bool shouldDeferParsing = calcDeferParsing();
+  bool deferredParsing = false;
 
   Decl *Res;
-  if (shouldDeferParsing) {
+  if (getLangOpts().ProcessBodyOnce) {
     D.setFunctionDefinitionKind(FunctionDefinitionKind::Definition);
     Scope *ParentScope = getCurScope()->getParent();
     Res = Actions.HandleDeclarator(ParentScope, D,
                                    TemplateInfo.TemplateParams
                                        ? *TemplateInfo.TemplateParams
                                        : MultiTemplateParamsArg());
+
+    FunctionDecl *FD = Res->getAsFunction();
+    deferredParsing = shouldDeferParsing(FD);
+    if (!deferredParsing) {
+      FD->setNonDeferrableBody(true);
+      Actions.ActOnStartOfFunctionDef(getCurScope(), Res);
+    }
+
   } else {
     Res = Actions.ActOnStartOfFunctionDef(getCurScope(), D,
                                           TemplateInfo.TemplateParams
@@ -1342,7 +1335,7 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
       CurTemplateDepthTracker.addDepth(1);
 
   if (TryConsumeToken(tok::equal)) {
-    if (shouldDeferParsing) {
+    if (deferredParsing) {
       Actions.ActOnStartOfFunctionDef(getCurScope(), Res);
     }
 
@@ -1388,12 +1381,13 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
     return Actions.ActOnFinishFunctionBody(Res, nullptr, false);
   }
 
-  if (shouldDeferParsing) {
+  if (deferredParsing) {
     CachedTokens Toks;
     LexTemplateFunctionForLateParsing(Toks);
 
     FunctionDecl *FnD = Res->getAsFunction();
     Actions.MarkAsLateParsedFunction(FnD, Toks);
+    BodyScope.Exit();
     return Res;
   }
 

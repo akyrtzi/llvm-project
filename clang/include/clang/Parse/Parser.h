@@ -1531,6 +1531,7 @@ private:
 
 public:
   void ParseLateParsedFuncDef(FunctionDecl *FD);
+  bool shouldDeferParsing(FunctionDecl *FD);
 
 private:
   static void LateTemplateParserCallback(void *P, LateParsedTemplate &LPT);

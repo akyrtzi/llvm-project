@@ -2451,6 +2451,7 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
   }
 
   Method->CachedBodyTokens = D->CachedBodyTokens;
+  Method->setNonDeferrableBody(D->hasNonDeferrableBody());
 
   if (D->isInlined())
     Method->setImplicitlyInline();
@@ -5023,18 +5024,14 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     SetDeclDefaulted(Function, PatternDecl->getLocation());
   } else {
     auto shouldDeferParsing = [&]()->bool {
-      if (Function->isConstexpr())
+      if (PatternDef->hasNonDeferrableBody())
         return false;
-      for (ParmVarDecl *Parm : PatternDecl->parameters()) {
-        // FIXME: Allow deferred parsing for pack template arguments.
-        if (Parm->isParameterPack())
-          return false;
-      }
       return getLangOpts().ProcessBodyOnce;
     };
     if (shouldDeferParsing()) {
       Function->CachedBodyTokens = PatternDef->CachedBodyTokens;
     } else {
+    Function->setNonDeferrableBody(true);
 
     MultiLevelTemplateArgumentList TemplateArgs =
       getTemplateInstantiationArgs(Function, nullptr, false, PatternDecl);

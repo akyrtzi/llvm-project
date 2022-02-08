@@ -2202,6 +2202,9 @@ public:
 
   bool hasDeferredParsedBody() const { return !CachedBodyTokens.empty(); }
 
+  bool hasNonDeferrableBody() const { return FunctionDeclBits.NonDeferrableBody; }
+  void setNonDeferrableBody(bool IT) { FunctionDeclBits.NonDeferrableBody = IT; }
+
   /// State that this templated function will be late parsed.
   void setLateTemplateParsed(bool ILT = true) {
     FunctionDeclBits.IsLateTemplateParsed = ILT;

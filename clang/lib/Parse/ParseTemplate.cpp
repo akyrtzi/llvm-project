@@ -1748,6 +1748,23 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
   }
 }
 
+bool Parser::shouldDeferParsing(FunctionDecl *FD) {
+  if (FD->isConstexpr())
+    return false;
+  for (ParmVarDecl *Parm : FD->parameters()) {
+    // FIXME: Allow deferred parsing for pack template arguments.
+    if (Parm->isParameterPack())
+      return false;
+    if (const TemplateSpecializationType *TST = Parm->getType()->getAs<TemplateSpecializationType>()) {
+      for (const TemplateArgument &arg : *TST) {
+        if (arg.getKind() == TemplateArgument::Type && isa<PackExpansionType>(arg.getAsType()))
+          return false;
+      }
+    }
+  }
+  return getLangOpts().ProcessBodyOnce;
+}
+
 void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
   // Destroy TemplateIdAnnotations when we're done, if possible.
   DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);

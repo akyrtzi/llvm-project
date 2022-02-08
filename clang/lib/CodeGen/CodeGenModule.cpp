@@ -46,6 +46,7 @@
 #include "clang/CodeGen/ConstantInitBuilder.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
+#include "clang/Sema/Sema.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -5018,6 +5019,10 @@ void CodeGenModule::HandleCXXStaticMemberVarInstantiation(VarDecl *VD) {
 void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
                                                  llvm::GlobalValue *GV) {
   const auto *D = cast<FunctionDecl>(GD.getDecl());
+
+  if (D->hasDeferredParsedBody()) {
+    TheSema->completeTypesOfFunctionDef(const_cast<FunctionDecl *>(D));
+  }
 
   // Compute the function info and LLVM type.
   const CGFunctionInfo &FI = getTypes().arrangeGlobalDeclaration(GD);

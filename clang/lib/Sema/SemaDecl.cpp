@@ -18831,8 +18831,12 @@ void Sema::ParseDeferredParsedFunction(FunctionDecl *FD) {
   assert(FD->hasDeferredParsedBody());
   P.ParseLateParsedFuncDef(FD);
 
-  if (FD->getTemplateSpecializationKind() == TSK_ImplicitInstantiation) {
+  // Handle potential new instantiations or used vtables.
+  while (true) {
+    DefineUsedVTables();
     PerformPendingInstantiations();
+    if (VTableUses.empty())
+      break;
   }
 }
 

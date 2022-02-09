@@ -1785,8 +1785,12 @@ bool Parser::shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo
 
   for (const TemplateParameterList *TAL : ParameterLists) {
     for (const NamedDecl *ND : *TAL) {
-      if (ND->isParameterPack() && ND->getIdentifier())
-        packArgs.push_back(ND->getIdentifier());
+      IdentifierInfo *II = ND->getIdentifier();
+      if (!II)
+        continue;
+      // FIXME: Allow deferred parsing template template parameters.
+      if (ND->isParameterPack() || isa<TemplateTemplateParmDecl>(ND))
+        packArgs.push_back(II);
     }
   }
 

@@ -18836,7 +18836,7 @@ void Sema::ParseDeferredParsedFunction(FunctionDecl *FD) {
   }
 }
 
-void Sema::completeTypesOfFunctionDef(FunctionDecl *FD) {
+void Sema::completeTypesOfFunctionDef(const FunctionDecl *FD) {
   assert(FD->hasDeferredParsedBody());
   // The return type of a function definition must be complete
   // (C99 6.9.1p3, C++ [dcl.fct]p6).
@@ -18844,8 +18844,9 @@ void Sema::completeTypesOfFunctionDef(FunctionDecl *FD) {
   if (!ResultType->isDependentType() && !ResultType->isVoidType() &&
       !FD->isInvalidDecl() &&
       RequireCompleteType(FD->getLocation(), ResultType,
-                          diag::err_func_def_incomplete_result))
-    FD->setInvalidDecl();
+                          diag::err_func_def_incomplete_result)) {
+    const_cast<FunctionDecl *>(FD)->setInvalidDecl();
+  }
 
   for (ParmVarDecl *Param : FD->parameters()) {
     // C99 6.7.5.3p4: the parameters in a parameter type list in a

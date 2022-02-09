@@ -4225,6 +4225,12 @@ CodeGenModule::GetAddrOfGlobal(GlobalDecl GD, ForDefinition_t IsForDefinition) {
     return getAddrOfCXXStructor(GD, /*FnInfo=*/nullptr, /*FnType=*/nullptr,
                                 /*DontDefer=*/false, IsForDefinition);
 
+  if (auto *FD = dyn_cast<FunctionDecl>(D)) {
+    if (FD->hasDeferredParsedBody()) {
+      TheSema->completeTypesOfFunctionDef(FD);
+    }
+  }
+
   if (isa<CXXMethodDecl>(D)) {
     auto FInfo =
         &getTypes().arrangeCXXMethodDeclaration(cast<CXXMethodDecl>(D));
@@ -5021,7 +5027,7 @@ void CodeGenModule::EmitGlobalFunctionDefinition(GlobalDecl GD,
   const auto *D = cast<FunctionDecl>(GD.getDecl());
 
   if (D->hasDeferredParsedBody()) {
-    TheSema->completeTypesOfFunctionDef(const_cast<FunctionDecl *>(D));
+    TheSema->completeTypesOfFunctionDef(D);
   }
 
   // Compute the function info and LLVM type.

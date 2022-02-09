@@ -915,7 +915,7 @@ public:
   }
 
   void ParseDeferredParsedFunction(FunctionDecl *FD);
-  void completeTypesOfFunctionDef(FunctionDecl *FD);
+  void completeTypesOfFunctionDef(const FunctionDecl *FD);
 
   class DelayedDiagnostics;
 

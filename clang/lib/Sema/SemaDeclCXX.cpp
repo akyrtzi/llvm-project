@@ -10332,6 +10332,21 @@ Sema::ActOnReenterTemplateSpecScope(Decl *D,
         parm = TypeAliasDecl::Create(Context, LookupDC, SourceLocation(), SourceLocation(), inj->getIdentifier(), TInfo);
       } else if (arg.getKind() == TemplateArgument::Integral) {
         parm = EnumConstantDecl::Create(Context, LookupDC, inj->getIdentifier(), arg.getIntegralType(), /*expr*/nullptr, arg.getAsIntegral());
+      } else if (arg.getKind() == TemplateArgument::Declaration) {
+        QualType ty = arg.getParamTypeForDecl().withConst();
+        TypeSourceInfo *TInfo = Context.getTrivialTypeSourceInfo(ty);
+        VarDecl *vd = VarDecl::Create(Context, LookupDC, SourceLocation(), SourceLocation(), inj->getIdentifier(), ty, TInfo, SC_None);
+        DeclRefExpr *DRE = DeclRefExpr::Create(Context, NestedNameSpecifierLoc(),
+                                               SourceLocation(), arg.getAsDecl(),
+                                               /*RefersToEnclosingVariableOrCapture*/false,
+                                               SourceLocation(), arg.getAsDecl()->getType(), VK_PRValue);
+        UnaryOperator *UO = UnaryOperator::Create(Context, DRE, UO_AddrOf,
+                                     ty, VK_PRValue, OK_Ordinary, SourceLocation(), false, FPOptionsOverride());
+        vd->setInit(UO);
+        vd->setConstexpr(true);
+        SmallVector<PartialDiagnosticAt, 8> Notes;
+        (void)vd->checkForConstantInitialization(Notes);
+        parm = vd;
       }
       if (parm) {
         parm->setAccess(AS_private);

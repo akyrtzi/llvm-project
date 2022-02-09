@@ -546,6 +546,7 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
 
     if (deferredParsing) {
       Actions.MarkAsLateParsedFunction(FD, LM.Toks);
+      FD->setWillHaveBody(false);
       return;
     }
 

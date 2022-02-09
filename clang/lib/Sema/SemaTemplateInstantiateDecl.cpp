@@ -2065,8 +2065,6 @@ Decl *TemplateDeclInstantiator::VisitFunctionDecl(
     Function->setRangeEnd(D->getSourceRange().getEnd());
   }
 
-//  Function->CachedBodyTokens = D->CachedBodyTokens;
-
   if (D->isInlined())
     Function->setImplicitlyInline();
 
@@ -2444,9 +2442,6 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
         D->UsesFPIntrin(), D->isInlineSpecified(), D->getConstexprKind(),
         D->getEndLoc(), TrailingRequiresClause);
   }
-
-  Method->CachedBodyTokens = D->CachedBodyTokens;
-  Method->setNonDeferrableBody(D->hasNonDeferrableBody());
 
   if (D->isInlined())
     Method->setImplicitlyInline();

@@ -34,7 +34,6 @@ unsigned Parser::ReenterTemplateScopes(MultiParseScope &S, Decl *D) {
 
 unsigned Parser::ReenterTemplateSpecScopes(MultiParseScope &S, Decl *D) {
   return Actions.ActOnReenterTemplateSpecScope(D, [&] {
-    S.Enter(Scope::TemplateParamScope);
     return Actions.getCurScope();
   });
 }

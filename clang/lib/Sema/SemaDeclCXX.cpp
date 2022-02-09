@@ -10342,12 +10342,6 @@ Sema::ActOnReenterTemplateSpecScope(Decl *D,
     ++Count;
   }
 
-  // Associate the new template scopes with the corresponding entities.
-  if (InnermostTemplateScope) {
-    assert(LookupDC && "no enclosing DeclContext for template lookup");
-    EnterTemplatedContext(InnermostTemplateScope, LookupDC);
-  }
-
   return Count;
 }
 

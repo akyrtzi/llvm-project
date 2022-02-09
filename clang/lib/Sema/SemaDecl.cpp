@@ -18838,6 +18838,10 @@ void Sema::ParseDeferredParsedFunction(FunctionDecl *FD) {
 
 void Sema::completeTypesOfFunctionDef(const FunctionDecl *FD) {
   assert(FD->hasDeferredParsedBody());
+  if (FD->hasCompletedFunctionTypes())
+    return;
+  const_cast<FunctionDecl *>(FD)->setCompletedFunctionTypes(true);
+
   // The return type of a function definition must be complete
   // (C99 6.9.1p3, C++ [dcl.fct]p6).
   QualType ResultType = FD->getReturnType();

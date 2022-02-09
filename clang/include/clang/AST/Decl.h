@@ -2205,6 +2205,9 @@ public:
   bool hasNonDeferrableBody() const { return FunctionDeclBits.NonDeferrableBody; }
   void setNonDeferrableBody(bool IT) { FunctionDeclBits.NonDeferrableBody = IT; }
 
+  bool hasCompletedFunctionTypes() const { return FunctionDeclBits.CompletedFunctionTypes; }
+  void setCompletedFunctionTypes(bool IT) { FunctionDeclBits.CompletedFunctionTypes = IT; }
+
   /// State that this templated function will be late parsed.
   void setLateTemplateParsed(bool ILT = true) {
     FunctionDeclBits.IsLateTemplateParsed = ILT;

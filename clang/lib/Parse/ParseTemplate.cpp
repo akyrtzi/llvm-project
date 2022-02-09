@@ -1837,6 +1837,7 @@ void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
   const_cast<Token &>(FunD->CachedBodyTokens.data()[FunD->CachedBodyTokens.size()-1]) = Tok;
   PP.EnterTokenStream(FunD->CachedBodyTokens, true, /*IsReinject*/ true);
   FunD->CachedBodyTokens = ArrayRef<Token>();
+  FunD->setCompletedFunctionTypes(true); // completion below via `Actions.ActOnStartOfFunctionDef`
 
   // Consume the previously pushed token.
   ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);

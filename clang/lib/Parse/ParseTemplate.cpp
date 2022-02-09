@@ -1821,6 +1821,16 @@ void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
       Actions.PushDeclContext(Actions.getCurScope(), DC);
   }
 
+  // Use the parameter names from the template definition.
+  if (FunctionDecl *DefF = FunD->getTemplateInstantiationPattern()) {
+    MutableArrayRef<ParmVarDecl *> declParms = FunD->parameters();
+    ArrayRef<ParmVarDecl *> defParms = DefF->parameters();
+    for (unsigned i = 0, e = defParms.size(); i != e; ++i) {
+      ParmVarDecl *P = declParms[i];
+      P->setDeclName(defParms[i]->getDeclName());
+    }
+  }
+
   assert(FunD->hasDeferredParsedBody());
   // Put the current token at the end of the new token stream so that it
   // doesn't get lost.

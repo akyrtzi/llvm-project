@@ -2338,15 +2338,6 @@ Decl *TemplateDeclInstantiator::VisitCXXMethodDecl(
     D->setTypeSourceInfo(TSI);
   }
 
-  FunctionDecl *DefF = D->getDefinition();
-  if (DefF && DefF != D) {
-    MutableArrayRef<ParmVarDecl *> declParms = D->parameters();
-    ArrayRef<ParmVarDecl *> defParms = DefF->parameters();
-    for (unsigned i = 0, e = defParms.size(); i != e; ++i) {
-      ParmVarDecl *P = declParms[i];
-      P->setDeclName(defParms[i]->getDeclName());
-    }
-  }
   SmallVector<ParmVarDecl *, 4> Params;
   TypeSourceInfo *TInfo = SubstFunctionType(D, Params);
   if (!TInfo)

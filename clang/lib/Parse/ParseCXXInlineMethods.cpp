@@ -529,29 +529,35 @@ void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
 }
 
 void Parser::ParseLexedMethodDef(LexedMethod &LM) {
-  if (getLangOpts().ProcessBodyOnce) {
-    FunctionDecl *FD = LM.D->getAsFunction();
+  FunctionDecl *FD = LM.D->getAsFunction();
+
+  auto tryDeferParsingBody = [&]()->bool {
+    if (!getLangOpts().ProcessBodyOnce)
+      return false;
+
+    if (Actions.getCurScope()->getFnParent())
+      return false; // we are inside another function body.
+
     SmallVector<IdentifierInfo *, 2> PackArgs;
-    bool deferredParsing = shouldDeferParsing(FD, PackArgs);
-    if (deferredParsing && !PackArgs.empty()) {
+    if (!shouldDeferParsing(FD, PackArgs))
+      return false;
+    if (!PackArgs.empty()) {
       for (const Token &tok : LM.Toks) {
         if (tok.getKind() == tok::identifier) {
-          if (std::find(PackArgs.begin(), PackArgs.end(), tok.getIdentifierInfo()) != PackArgs.end()) {
-            deferredParsing = false;
-            break;
-          }
+          if (std::find(PackArgs.begin(), PackArgs.end(), tok.getIdentifierInfo()) != PackArgs.end())
+            return false;
         }
       }
     }
 
-    if (deferredParsing) {
-      Actions.MarkAsLateParsedFunction(FD, LM.Toks);
-      FD->setWillHaveBody(false);
-      return;
-    }
+    Actions.MarkAsLateParsedFunction(FD, LM.Toks);
+    FD->setWillHaveBody(false);
+    return true;
+  };
 
-    FD->setNonDeferrableBody(true);
-  }
+  if (tryDeferParsingBody())
+    return;
+  FD->setNonDeferrableBody(true);
 
   // If this is a member template, introduce the template parameter scope.
   ReenterTemplateScopeRAII InFunctionTemplateScope(*this, LM.D);

@@ -1380,7 +1380,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
       if (FD->isImplicit())
         return false;
     } else if (isa<CXXDestructorDecl>(FD)) {
-      if (GD.getDtorType() != Dtor_Base)
+      if (!FD->hasDeferredParsedBody())
         return false;
     }
     if (FD->hasNonDeferrableBody())

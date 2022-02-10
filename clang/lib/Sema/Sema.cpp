@@ -1393,6 +1393,7 @@ void Sema::ActOnEndOfTranslationUnit() {
 
 //  if (!PP.isIncrementalProcessingEnabled())
 //    TUScope = nullptr;
+  HasFinishedTU = true;
 }
 
 

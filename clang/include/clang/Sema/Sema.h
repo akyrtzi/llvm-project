@@ -1105,6 +1105,8 @@ public:
   /// For example, user-defined classes, built-in "id" type, etc.
   Scope *TUScope;
 
+  bool HasFinishedTU = false;
+
   /// The C++ "std" namespace, where the standard library resides.
   LazyDeclPtr StdNamespace;
 

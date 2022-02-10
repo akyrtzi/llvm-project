@@ -18831,6 +18831,8 @@ void Sema::ParseDeferredParsedFunction(FunctionDecl *FD) {
   assert(FD->hasDeferredParsedBody());
   P.ParseLateParsedFuncDef(FD);
 
+  if (!HasFinishedTU)
+    return;
   // Handle potential new instantiations or used vtables.
   while (true) {
     DefineUsedVTables();

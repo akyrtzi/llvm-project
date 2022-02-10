@@ -1753,6 +1753,12 @@ bool Parser::shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo
     return false;
   if (FD->isConstexpr())
     return false;
+
+  if (std::find(ForcedEagerParsingForFunctionIdentifiers.begin(),
+                ForcedEagerParsingForFunctionIdentifiers.end(),
+                FD->getIdentifier()) != ForcedEagerParsingForFunctionIdentifiers.end())
+    return false;
+
   for (ParmVarDecl *Parm : FD->parameters()) {
     // FIXME: Allow deferred parsing for pack template arguments.
     if (Parm->isParameterPack())

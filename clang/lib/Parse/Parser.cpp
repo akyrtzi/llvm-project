@@ -559,6 +559,16 @@ void Parser::Initialize() {
     Ident_module = PP.getIdentifierInfo("module");
   }
 
+  if (getLangOpts().ProcessBodyOnce) {
+    // These functions should be eagerly parsed otherwise there will be an infinite recursion like
+    // memchr -> __libcpp_memchr -> memchr -> __libcpp_memchr -> ...
+    ForcedEagerParsingForFunctionIdentifiers.push_back(PP.getIdentifierInfo("__libcpp_strchr"));
+    ForcedEagerParsingForFunctionIdentifiers.push_back(PP.getIdentifierInfo("__libcpp_strpbrk"));
+    ForcedEagerParsingForFunctionIdentifiers.push_back(PP.getIdentifierInfo("__libcpp_strrchr"));
+    ForcedEagerParsingForFunctionIdentifiers.push_back(PP.getIdentifierInfo("__libcpp_memchr"));
+    ForcedEagerParsingForFunctionIdentifiers.push_back(PP.getIdentifierInfo("__libcpp_strstr"));
+  }
+
   Actions.Initialize();
 
   // Prime the lexer look-ahead.

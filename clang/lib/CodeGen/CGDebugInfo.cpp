@@ -5235,7 +5235,9 @@ void CGDebugInfo::EmitGlobalVariable(const ValueDecl *VD, const APValue &Init) {
   llvm::DIType *Ty = getOrCreateType(VD->getType(), Unit);
 
   if (const auto *ECD = dyn_cast<EnumConstantDecl>(VD)) {
-    const auto *ED = cast<EnumDecl>(ECD->getDeclContext());
+    const auto *ED = dyn_cast<EnumDecl>(ECD->getDeclContext());
+    if (!ED)
+      return;
     assert(isa<EnumType>(ED->getTypeForDecl()) && "Enum without EnumType?");
 
     if (CGM.getCodeGenOpts().EmitCodeView) {

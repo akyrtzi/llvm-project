@@ -1383,9 +1383,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
         return false;
     }
     if (isa<CXXConstructorDecl>(FD)) {
-      if (GD.getCtorType() != Ctor_Base)
-        return false;
-      if (FD->isImplicit())
+      if (!FD->hasDeferredParsedBody())
         return false;
     } else if (isa<CXXDestructorDecl>(FD)) {
       if (!FD->hasDeferredParsedBody())

@@ -605,7 +605,7 @@ Value *NaryReassociatePass::tryReassociateMinOrMax(Instruction *I,
       // The optimization is profitable only if LHS can be removed in the end.
       // In other words LHS should be used (directly or indirectly) by I only.
       llvm::any_of(LHS->users(),
-                    [&](auto *U) {
+                    [&](Value *U) {
                       return U != I &&
                              !(U->hasOneUser() && *U->users().begin() == I);
                     }) ||

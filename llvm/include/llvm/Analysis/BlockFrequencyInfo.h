@@ -28,7 +28,7 @@ class Function;
 class LoopInfo;
 class Module;
 class raw_ostream;
-template <class BlockT> class BlockFrequencyInfoImpl;
+template <class BT> class BlockFrequencyInfoImpl;
 
 enum PGOViewCountsType { PGOVCT_None, PGOVCT_Graph, PGOVCT_Text };
 

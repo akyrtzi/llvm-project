@@ -28,21 +28,21 @@ class Instruction;
 /// DDG-like graphs. The client code is expected to inherit from this class and
 /// define concrete implementation for each of the pure virtual functions used
 /// in the high-level algorithm.
-template <class GraphType> class AbstractDependenceGraphBuilder {
+template <class G> class AbstractDependenceGraphBuilder {
 protected:
   using BasicBlockListType = SmallVectorImpl<BasicBlock *>;
 
 private:
-  using NodeType = typename GraphType::NodeType;
-  using EdgeType = typename GraphType::EdgeType;
+  using NodeType = typename G::NodeType;
+  using EdgeType = typename G::EdgeType;
 
 public:
   using ClassesType = EquivalenceClasses<BasicBlock *>;
   using NodeListType = SmallVector<NodeType *, 4>;
 
-  AbstractDependenceGraphBuilder(GraphType &G, DependenceInfo &D,
+  AbstractDependenceGraphBuilder(G &g, DependenceInfo &D,
                                  const BasicBlockListType &BBs)
-      : Graph(G), DI(D), BBList(BBs) {}
+      : Graph(g), DI(D), BBList(BBs) {}
   virtual ~AbstractDependenceGraphBuilder() {}
 
   /// The main entry to the graph construction algorithm. It starts by
@@ -177,7 +177,7 @@ protected:
 
   /// Reference to the graph that gets built by a concrete implementation of
   /// this builder.
-  GraphType &Graph;
+  G &Graph;
 
   /// Dependence information used to create memory dependence edges in the
   /// graph.

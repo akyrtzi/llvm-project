@@ -24,12 +24,11 @@ inline AnalysisManager<IRUnitT, ExtraArgTs...>::AnalysisManager() {}
 
 template <typename IRUnitT, typename... ExtraArgTs>
 inline AnalysisManager<IRUnitT, ExtraArgTs...>::AnalysisManager(
-    AnalysisManager &&) = default;
+    AnalysisManager &&) {}
 
 template <typename IRUnitT, typename... ExtraArgTs>
 inline AnalysisManager<IRUnitT, ExtraArgTs...> &
-AnalysisManager<IRUnitT, ExtraArgTs...>::operator=(AnalysisManager &&) =
-    default;
+AnalysisManager<IRUnitT, ExtraArgTs...>::operator=(AnalysisManager &&) {}
 
 template <typename IRUnitT, typename... ExtraArgTs>
 inline void

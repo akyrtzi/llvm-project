@@ -269,9 +269,11 @@ public:
   class defusechain_instr_iterator;
 
   // Make it a friend so it can access getNextOperandForReg().
-  template<bool, bool, bool, bool, bool, bool>
+  template <bool ReturnUses, bool ReturnDefs, bool SkipDebug, bool ByOperand,
+            bool ByInstr, bool ByBundle>
     friend class defusechain_iterator;
-  template<bool, bool, bool, bool, bool, bool>
+  template <bool ReturnUses, bool ReturnDefs, bool SkipDebug, bool ByOperand,
+            bool ByInstr, bool ByBundle>
     friend class defusechain_instr_iterator;
 
   /// reg_iterator/reg_begin/reg_end - Walk all defs and uses of the specified

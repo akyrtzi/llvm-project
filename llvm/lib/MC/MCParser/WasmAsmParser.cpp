@@ -37,10 +37,10 @@ class WasmAsmParser : public MCAsmParserExtension {
 
   template<bool (WasmAsmParser::*HandlerMethod)(StringRef, SMLoc)>
   void addDirectiveHandler(StringRef Directive) {
-    MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
-        this, HandleDirective<WasmAsmParser, HandlerMethod>);
+    // MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
+    //     this, HandleDirective<WasmAsmParser, HandlerMethod>);
 
-    getParser().addDirectiveHandler(Directive, Handler);
+    // getParser().addDirectiveHandler(Directive, Handler);
   }
 
 public:

@@ -31,7 +31,7 @@
 
 namespace llvm {
 
-template<class Graph> class GraphWriter;
+template<class GraphType> class GraphWriter;
 class LLVMTargetMachine;
 class MachineFunction;
 class MachineRegisterInfo;

@@ -63,9 +63,9 @@ class Loop;
 class LoopInfo;
 class PostDominatorTree;
 class Region;
-template <class RegionTr> class RegionBase;
+template <class Tr> class RegionBase;
 class RegionInfo;
-template <class RegionTr> class RegionInfoBase;
+template <class Tr> class RegionInfoBase;
 class RegionNode;
 
 // Class to be specialized for different users of RegionInfo

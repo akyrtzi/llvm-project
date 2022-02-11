@@ -62,8 +62,8 @@ class MDNode;
 class MemorySSAUpdater;
 class ScalarEvolution;
 class raw_ostream;
-template <class N, bool IsPostDom> class DominatorTreeBase;
-template <class N, class M> class LoopInfoBase;
+template <class NodeT, bool IsPostDom> class DominatorTreeBase;
+template <class BlockT, class LoopT> class LoopInfoBase;
 template <class N, class M> class LoopBase;
 
 //===----------------------------------------------------------------------===//
@@ -911,7 +911,7 @@ public:
     BBMap = std::move(RHS.BBMap);
 
     for (auto *L : TopLevelLoops)
-      L->~LoopT();
+      ;//L->~LoopT();
 
     TopLevelLoops = std::move(RHS.TopLevelLoops);
     LoopAllocator = std::move(RHS.LoopAllocator);
@@ -923,7 +923,7 @@ public:
     BBMap.clear();
 
     for (auto *L : TopLevelLoops)
-      L->~LoopT();
+      ;//L->~LoopT();
     TopLevelLoops.clear();
     LoopAllocator.Reset();
   }

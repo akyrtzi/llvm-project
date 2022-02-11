@@ -35,7 +35,7 @@
 
 namespace llvm {
 
-template <unsigned N> class SmallString;
+template <unsigned InternalLen> class SmallString;
 template <typename T> class ArrayRef;
 
 class MD5 {

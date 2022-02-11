@@ -45,9 +45,9 @@ namespace {
 class DarwinAsmParser : public MCAsmParserExtension {
   template<bool (DarwinAsmParser::*HandlerMethod)(StringRef, SMLoc)>
   void addDirectiveHandler(StringRef Directive) {
-    MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
-        this, HandleDirective<DarwinAsmParser, HandlerMethod>);
-    getParser().addDirectiveHandler(Directive, Handler);
+    // MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
+    //     this, HandleDirective<DarwinAsmParser, HandlerMethod>);
+    // getParser().addDirectiveHandler(Directive, Handler);
   }
 
   bool parseSectionSwitch(StringRef Segment, StringRef Section,

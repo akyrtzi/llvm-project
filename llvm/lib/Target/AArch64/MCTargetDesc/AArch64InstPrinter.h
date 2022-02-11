@@ -96,7 +96,7 @@ protected:
                       const MCSubtargetInfo &STI, raw_ostream &O) {
     printMemExtend(MI, OpNum, O, SrcRegKind, Width);
   }
-  template <bool SignedExtend, int ExtWidth, char SrcRegKind, char Suffix>
+  template <bool SignExtend, int ExtWidth, char SrcRegKind, char Suffix>
   void printRegWithShiftExtend(const MCInst *MI, unsigned OpNum,
                                const MCSubtargetInfo &STI, raw_ostream &O);
   void printCondCode(const MCInst *MI, unsigned OpNum,
@@ -203,7 +203,7 @@ protected:
                    raw_ostream &O);
   void printSVCROp(const MCInst *MI, unsigned OpNum, const MCSubtargetInfo &STI,
                    raw_ostream &O);
-  template <char = 0>
+  template <char suffix = 0>
   void printSVERegOp(const MCInst *MI, unsigned OpNum,
                     const MCSubtargetInfo &STI, raw_ostream &O);
   void printGPR64as32(const MCInst *MI, unsigned OpNum,

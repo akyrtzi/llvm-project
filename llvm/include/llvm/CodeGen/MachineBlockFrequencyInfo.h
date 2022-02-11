@@ -21,7 +21,7 @@
 
 namespace llvm {
 
-template <class BlockT> class BlockFrequencyInfoImpl;
+template <class BT> class BlockFrequencyInfoImpl;
 class MachineBasicBlock;
 class MachineBranchProbabilityInfo;
 class MachineFunction;

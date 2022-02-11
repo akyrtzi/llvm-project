@@ -107,7 +107,7 @@ namespace llvm {
 namespace clang {
 
 class ASTContext;
-template <typename> class CanQual;
+template <typename T> class CanQual;
 class CXXRecordDecl;
 class DeclContext;
 class EnumDecl;

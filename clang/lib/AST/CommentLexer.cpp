@@ -215,7 +215,7 @@ const char *skipWhitespace(const char *BufferPtr, const char *BufferEnd) {
   return BufferEnd;
 }
 
-bool isWhitespace(const char *BufferPtr, const char *BufferEnd) {
+bool isWhitespace2(const char *BufferPtr, const char *BufferEnd) {
   return skipWhitespace(BufferPtr, BufferEnd) == BufferEnd;
 }
 
@@ -517,7 +517,7 @@ again:
     TextEnd = BufferPtr + Pos;
     NextLine = TextEnd;
     // If there is only whitespace before end command, skip whitespace.
-    if (isWhitespace(BufferPtr, TextEnd)) {
+    if (isWhitespace2(BufferPtr, TextEnd)) {
       BufferPtr = TextEnd;
       goto again;
     }

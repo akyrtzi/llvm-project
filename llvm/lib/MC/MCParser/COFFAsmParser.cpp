@@ -34,9 +34,9 @@ namespace {
 class COFFAsmParser : public MCAsmParserExtension {
   template<bool (COFFAsmParser::*HandlerMethod)(StringRef, SMLoc)>
   void addDirectiveHandler(StringRef Directive) {
-    MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
-        this, HandleDirective<COFFAsmParser, HandlerMethod>);
-    getParser().addDirectiveHandler(Directive, Handler);
+    // MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
+    //     this, HandleDirective<COFFAsmParser, HandlerMethod>);
+    // getParser().addDirectiveHandler(Directive, Handler);
   }
 
   bool ParseSectionSwitch(StringRef Section,

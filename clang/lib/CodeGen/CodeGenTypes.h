@@ -29,7 +29,7 @@ class StructType;
 
 namespace clang {
 class ASTContext;
-template <typename> class CanQual;
+template <typename T> class CanQual;
 class CXXConstructorDecl;
 class CXXDestructorDecl;
 class CXXMethodDecl;

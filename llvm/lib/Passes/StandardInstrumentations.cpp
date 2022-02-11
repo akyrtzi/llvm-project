@@ -411,8 +411,8 @@ bool ChangeReporter<T>::isInteresting(Any IR, StringRef PassID) {
   return true;
 }
 
-template <typename T>
-void ChangeReporter<T>::saveIRBeforePass(Any IR, StringRef PassID) {
+template <typename IRUnitT>
+void ChangeReporter<IRUnitT>::saveIRBeforePass(Any IR, StringRef PassID) {
   // Always need to place something on the stack because invalidated passes
   // are not given the IR so it cannot be determined whether the pass was for
   // something that was filtered out.
@@ -428,12 +428,12 @@ void ChangeReporter<T>::saveIRBeforePass(Any IR, StringRef PassID) {
   }
 
   // Save the IR representation on the stack.
-  T &Data = BeforeStack.back();
+  IRUnitT &Data = BeforeStack.back();
   generateIRRepresentation(IR, PassID, Data);
 }
 
-template <typename T>
-void ChangeReporter<T>::handleIRAfterPass(Any IR, StringRef PassID) {
+template <typename IRUnitT>
+void ChangeReporter<IRUnitT>::handleIRAfterPass(Any IR, StringRef PassID) {
   assert(!BeforeStack.empty() && "Unexpected empty stack encountered.");
 
   std::string Name = getIRName(IR);
@@ -446,9 +446,9 @@ void ChangeReporter<T>::handleIRAfterPass(Any IR, StringRef PassID) {
       handleFiltered(PassID, Name);
   } else {
     // Get the before rep from the stack
-    T &Before = BeforeStack.back();
+    IRUnitT &Before = BeforeStack.back();
     // Create the after rep
-    T After;
+    IRUnitT After;
     generateIRRepresentation(IR, PassID, After);
 
     // Was there a change in IR?
@@ -490,9 +490,9 @@ void ChangeReporter<T>::registerRequiredCallbacks(
       });
 }
 
-template <typename T>
-TextChangeReporter<T>::TextChangeReporter(bool Verbose)
-    : ChangeReporter<T>(Verbose), Out(dbgs()) {}
+template <typename IRUnitT>
+TextChangeReporter<IRUnitT>::TextChangeReporter(bool Verbose)
+    : ChangeReporter<IRUnitT>(Verbose), Out(dbgs()) {}
 
 template <typename T> void TextChangeReporter<T>::handleInitialIR(Any IR) {
   // Always print the module.

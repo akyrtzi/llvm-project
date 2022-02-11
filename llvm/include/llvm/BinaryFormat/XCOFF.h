@@ -18,7 +18,7 @@
 
 namespace llvm {
 class StringRef;
-template <unsigned> class SmallString;
+template <unsigned InternalLen> class SmallString;
 template <typename T> class Expected;
 
 namespace XCOFF {

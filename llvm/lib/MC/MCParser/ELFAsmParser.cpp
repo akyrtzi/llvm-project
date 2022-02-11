@@ -36,10 +36,10 @@ namespace {
 class ELFAsmParser : public MCAsmParserExtension {
   template<bool (ELFAsmParser::*HandlerMethod)(StringRef, SMLoc)>
   void addDirectiveHandler(StringRef Directive) {
-    MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
-        this, HandleDirective<ELFAsmParser, HandlerMethod>);
+    // MCAsmParser::ExtensionDirectiveHandler Handler = std::make_pair(
+    //     this, HandleDirective<ELFAsmParser, HandlerMethod>);
 
-    getParser().addDirectiveHandler(Directive, Handler);
+    // getParser().addDirectiveHandler(Directive, Handler);
   }
 
   bool ParseSectionSwitch(StringRef Section, unsigned Type, unsigned Flags,

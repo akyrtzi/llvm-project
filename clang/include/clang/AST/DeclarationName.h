@@ -31,7 +31,7 @@
 namespace clang {
 
 class ASTContext;
-template <typename> class CanQual;
+template <typename T> class CanQual;
 class DeclarationName;
 class DeclarationNameTable;
 class MultiKeywordSelector;

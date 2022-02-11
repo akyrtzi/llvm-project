@@ -5016,7 +5016,7 @@ void Sema::InstantiateFunctionDefinition(SourceLocation PointOfInstantiation,
     auto shouldDeferParsing = [&]()->bool {
       if (PatternDef->hasNonDeferrableBody())
         return false;
-      return getLangOpts().ProcessBodyOnce;
+      return getLangOpts().DeferBodyParsing;
     };
     if (shouldDeferParsing()) {
       Function->CachedBodyTokens = PatternDef->CachedBodyTokens;

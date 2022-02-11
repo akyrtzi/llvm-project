@@ -1749,7 +1749,7 @@ void Parser::ParseLateTemplatedFuncDef(LateParsedTemplate &LPT) {
 }
 
 bool Parser::shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo*> &packArgs) {
-  if (!getLangOpts().ProcessBodyOnce)
+  if (!getLangOpts().DeferBodyParsing)
     return false;
   if (FD->isConstexpr())
     return false;

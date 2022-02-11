@@ -1372,7 +1372,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   }
 
   auto shouldParseDeferredBody = [&]()->bool {
-    if (!getLangOpts().ProcessBodyOnce)
+    if (!getLangOpts().DeferBodyParsing)
       return false;
     if (FD->hasNonDeferrableBody())
       return false;

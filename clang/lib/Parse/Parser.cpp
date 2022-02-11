@@ -559,7 +559,7 @@ void Parser::Initialize() {
     Ident_module = PP.getIdentifierInfo("module");
   }
 
-  if (getLangOpts().ProcessBodyOnce) {
+  if (getLangOpts().DeferBodyParsing) {
     // These functions should be eagerly parsed otherwise there will be an infinite recursion like
     // memchr -> __libcpp_memchr -> memchr -> __libcpp_memchr -> ...
     ForcedEagerParsingForFunctionIdentifiers.push_back(PP.getIdentifierInfo("__libcpp_strchr"));
@@ -1300,7 +1300,7 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
   bool deferredParsing = false;
 
   Decl *Res;
-  if (getLangOpts().ProcessBodyOnce) {
+  if (getLangOpts().DeferBodyParsing) {
     D.setFunctionDefinitionKind(FunctionDefinitionKind::Definition);
     Scope *ParentScope = getCurScope()->getParent();
     Res = Actions.HandleDeclarator(ParentScope, D,

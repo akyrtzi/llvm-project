@@ -217,7 +217,7 @@ CodeGenModule::CodeGenModule(ASTContext &C, const HeaderSearchOptions &HSO,
 CodeGenModule::~CodeGenModule() {}
 
 void CodeGenModule::setSema(Sema &S) {
-  if (!getLangOpts().ProcessBodyOnce && !getLangOpts().CodegenBodyOnce)
+  if (!getLangOpts().DeferBodyParsing && !getLangOpts().CodegenBodyOnce)
     return;
 
   TheSema = &S;

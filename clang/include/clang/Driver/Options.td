@@ -6125,9 +6125,9 @@ def fcas_fs_working_directory : Separate<["-"], "fcas-fs-working-directory">,
     ShouldParseIf<!strconcat("!", fcas_fs.KeyPath, ".empty()")>,
     MarshallingInfoString<CASOpts<"CASFileSystemWorkingDirectory">>;
 
-defm process_body_once : BoolFOption<"process-body-once",
-  LangOpts<"ProcessBodyOnce">, DefaultFalse,
-  PosFlag<SetTrue, [CC1Option], "Parse and codegen function bodies once">,
+defm defer_body_parsing : BoolFOption<"defer-body-parsing",
+  LangOpts<"DeferBodyParsing">, DefaultFalse,
+  PosFlag<SetTrue, [CC1Option], "Parse function bodies on demand if codegen requires it">,
   NegFlag<SetFalse>>;
 
 defm codegen_body_once : BoolFOption<"codegen-body-once",

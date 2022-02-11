@@ -532,7 +532,7 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   FunctionDecl *FD = LM.D->getAsFunction();
 
   auto tryDeferParsingBody = [&]()->bool {
-    if (!getLangOpts().ProcessBodyOnce)
+    if (!getLangOpts().DeferBodyParsing)
       return false;
 
     if (Actions.getCurScope()->getFnParent())

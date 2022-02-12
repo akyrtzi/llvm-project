@@ -3208,6 +3208,10 @@ bool Sema::InstantiateClassTemplateSpecialization(
   if (!Pattern.isUsable())
     return Pattern.isInvalid();
 
+  if (Pattern.get()->hasDeferredParsedDefinition()) {
+    ParseDeferredParsedTag(Pattern.get());
+  }
+
   return InstantiateClass(
       PointOfInstantiation, ClassTemplateSpec, Pattern.get(),
       getTemplateInstantiationArgs(ClassTemplateSpec), TSK, Complain);

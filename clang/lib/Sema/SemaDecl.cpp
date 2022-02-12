@@ -5915,12 +5915,17 @@ NamedDecl *Sema::HandleDeclarator(Scope *S, Declarator &D,
         RequireCompleteDeclContext(D.getCXXScopeSpec(), DC))
       return nullptr;
 
-    // If a class is incomplete, do not parse entities inside it.
-    if (isa<CXXRecordDecl>(DC) && !cast<CXXRecordDecl>(DC)->hasDefinition()) {
-      Diag(D.getIdentifierLoc(),
-           diag::err_member_def_undefined_record)
-        << Name << DC << D.getCXXScopeSpec().getRange();
-      return nullptr;
+    if (auto *RD = dyn_cast<CXXRecordDecl>(DC)) {
+      if (CXXRecordDecl *DefRD = RD->getDefinition()) {
+        if (DefRD->hasDeferredParsedDefinition())
+          ParseDeferredParsedTag(DefRD);
+      } else {
+        // If a class is incomplete, do not parse entities inside it.
+        Diag(D.getIdentifierLoc(),
+             diag::err_member_def_undefined_record)
+          << Name << DC << D.getCXXScopeSpec().getRange();
+        return nullptr;
+      }
     }
     if (!D.getDeclSpec().isFriendSpecified()) {
       if (diagnoseQualifiedDeclaration(

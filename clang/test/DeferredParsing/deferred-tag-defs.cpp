@@ -24,3 +24,11 @@ struct MyS3 {
 int test3(MyS3 *o) {
   return o->x;
 }
+
+template <class _Tp, _Tp __v>
+struct integral_constant
+{
+  static constexpr const _Tp value = __v;
+};
+template <class _Tp, _Tp __v>
+constexpr const _Tp integral_constant<_Tp, __v>::value;

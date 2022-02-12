@@ -1880,6 +1880,88 @@ void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
   }
 }
 
+void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
+  // Destroy TemplateIdAnnotations when we're done, if possible.
+  DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
+
+  // Track template parameter depth.
+  TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
+
+  // To restore the context after late parsing.
+  Sema::ContextRAII GlobalSavedContext(
+      Actions, Actions.Context.getTranslationUnitDecl());
+
+  MultiParseScope Scopes(*this);
+
+  // Get the list of DeclContexts to reenter.
+  SmallVector<DeclContext*, 4> DeclContextsToReenter;
+  for (DeclContext *DC = TagD; DC && !DC->isTranslationUnit();
+       DC = DC->getLexicalParent())
+    DeclContextsToReenter.push_back(DC);
+
+  // Reenter scopes from outermost to innermost.
+  for (DeclContext *DC : reverse(DeclContextsToReenter)) {
+    CurTemplateDepthTracker.addDepth(
+        ReenterTemplateScopes(Scopes, cast<Decl>(DC)));
+    Scopes.Enter(Scope::DeclScope);
+    // We'll reenter the function context itself below.
+    if (DC != TagD)
+      Actions.PushDeclContext(Actions.getCurScope(), DC);
+  }
+
+  assert(TagD->hasDeferredParsedDefinition());
+  // Put the current token at the end of the new token stream so that it
+  // doesn't get lost.
+  const_cast<Token &>(TagD->CachedDefTokens.data()[TagD->CachedDefTokens.size()-1]) = Tok;
+  PP.EnterTokenStream(TagD->CachedDefTokens, true, /*IsReinject*/ true);
+  TagD->CachedDefTokens = ArrayRef<Token>();
+
+  // Consume the previously pushed token.
+  ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);
+  assert(Tok.isOneOf(tok::l_brace, tok::colon) &&
+         "Tag definition not starting with '{' or ':'");
+
+  // FIXME: Cache the parsed attributes from the eager parse.
+  ParsedAttributesWithRange attrs(AttrFactory);
+
+  DeclSpec::TST TagType;
+  switch (TagD->getTagKind()) {
+    case TTK_Struct:
+      TagType = DeclSpec::TST_struct;
+      break;
+    case TTK_Interface:
+      TagType = DeclSpec::TST_interface;
+      break;
+    case TTK_Union:
+      TagType = DeclSpec::TST_union;
+      break;
+    case TTK_Class:
+      TagType = DeclSpec::TST_class;
+      break;
+    case TTK_Enum:
+      TagType = DeclSpec::TST_enum;
+      break;
+  }
+
+  // Recreate the containing tag DeclContext.
+  Sema::ContextRAII TagSavedContext(Actions, TagD->getLexicalParent());
+
+  ParseCXXMemberSpecification(TagD->getLocation(), SourceLocation(), attrs, TagType,
+                              TagD);
+}
+
+void Parser::LexTagDefinitionForLateParsing(CachedTokens &Toks) {
+  if (Tok.is(tok::colon)) {
+    // FIXME: Properly handle base clauses, a left brace may appear within a template argument.
+    ConsumeAndStoreUntil(tok::l_brace, Toks, /*StopAtSemi=*/false, /*ConsumeFinalToken=*/false);
+  }
+
+  assert(Tok.is(tok::l_brace));
+  Toks.push_back(Tok);
+  ConsumeBrace();
+  ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/false);
+}
+
 /// Lex a delayed template function for late parsing.
 void Parser::LexTemplateFunctionForLateParsing(CachedTokens &Toks) {
   tok::TokenKind kind = Tok.getKind();

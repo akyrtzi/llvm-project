@@ -3427,6 +3427,10 @@ public:
   using redeclarable_base::getMostRecentDecl;
   using redeclarable_base::isFirstDecl;
 
+  ArrayRef<Token> CachedDefTokens;
+
+  bool hasDeferredParsedDefinition() const { return !CachedDefTokens.empty(); }
+
   SourceRange getBraceRange() const { return BraceRange; }
   void setBraceRange(SourceRange R) { BraceRange = R; }
 

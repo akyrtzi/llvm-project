@@ -10952,6 +10952,15 @@ void Sema::MarkAsLateParsedFunction(FunctionDecl *FD, CachedTokens &Toks) {
   FD->CachedBodyTokens = llvm::makeArrayRef(ToksPtr, Toks.size() + 1);
 }
 
+void Sema::MarkAsLateParsedTagDefinition(TagDecl *TD, CachedTokens &Toks) {
+  Token *ToksPtr = Context.Allocate<Token>(Toks.size() + 1);
+  std::uninitialized_copy(Toks.begin(), Toks.end(), ToksPtr);
+  Token &LastTok = ToksPtr[Toks.size()];
+  LastTok.startToken();
+  LastTok.setKind(tok::eof);
+  TD->CachedDefTokens = llvm::makeArrayRef(ToksPtr, Toks.size() + 1);
+}
+
 void Sema::UnmarkAsLateParsedTemplate(FunctionDecl *FD) {
   if (!FD)
     return;

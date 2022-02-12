@@ -6130,6 +6130,11 @@ defm defer_body_parsing : BoolFOption<"defer-body-parsing",
   PosFlag<SetTrue, [CC1Option], "Parse function bodies on demand if codegen requires it">,
   NegFlag<SetFalse>>;
 
+defm defer_tag_parsing : BoolFOption<"defer-tag-parsing",
+  LangOpts<"DeferTagParsing">, DefaultFalse,
+  PosFlag<SetTrue, [CC1Option], "Parse tag definitions on demand">,
+  NegFlag<SetFalse>>;
+
 defm codegen_body_once : BoolFOption<"codegen-body-once",
   LangOpts<"CodegenBodyOnce">, DefaultFalse,
   PosFlag<SetTrue, [CC1Option], "Codegen function bodies once">,

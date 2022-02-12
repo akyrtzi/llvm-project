@@ -202,6 +202,10 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
 
   TagDecl *tag = dyn_cast<TagDecl>(DC);
 
+  if (tag && tag->hasDeferredParsedDefinition()) {
+    ParseDeferredParsedTag(tag);
+  }
+
   // If this is a dependent type, then we consider it complete.
   // FIXME: This is wrong; we should require a (visible) definition to
   // exist in this case too.

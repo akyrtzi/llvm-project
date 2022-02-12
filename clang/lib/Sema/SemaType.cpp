@@ -8692,6 +8692,11 @@ bool Sema::RequireCompleteTypeImpl(SourceLocation Loc, QualType T,
   TagDecl *Tag = dyn_cast_or_null<TagDecl>(Def);
   ObjCInterfaceDecl *IFace = dyn_cast_or_null<ObjCInterfaceDecl>(Def);
 
+  if (Tag && Tag->hasDeferredParsedDefinition()) {
+    ParseDeferredParsedTag(Tag);
+    return RequireCompleteTypeImpl(Loc, T, Kind, Diagnoser);
+  }
+
   // Give the external source a chance to provide a definition of the type.
   // This is kept separate from completing the redeclaration chain so that
   // external sources such as LLDB can avoid synthesizing a type definition

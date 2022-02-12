@@ -915,6 +915,8 @@ public:
   }
 
   void ParseDeferredParsedFunction(FunctionDecl *FD);
+  void ParseDeferredParsedTag(TagDecl *TD);
+  void parsedDeferredDecl(Decl *D);
   void completeTypesOfFunctionDef(const FunctionDecl *FD);
 
   class DelayedDiagnostics;
@@ -7274,6 +7276,7 @@ public:
   void MarkAsLateParsedTemplate(FunctionDecl *FD, Decl *FnD,
                                 CachedTokens &Toks);
   void MarkAsLateParsedFunction(FunctionDecl *FD, CachedTokens &Toks);
+  void MarkAsLateParsedTagDefinition(TagDecl *TD, CachedTokens &Toks);
   void UnmarkAsLateParsedTemplate(FunctionDecl *FD);
   bool IsInsideALocalClassWithinATemplateFunction();
 

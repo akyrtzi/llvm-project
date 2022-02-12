@@ -1534,6 +1534,7 @@ private:
 public:
   void ParseLateParsedFuncDef(FunctionDecl *FD);
   bool shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo*> &packArgs);
+  void ParseLateParsedTagDef(TagDecl *TD);
 
 private:
   static void LateTemplateParserCallback(void *P, LateParsedTemplate &LPT);
@@ -1547,6 +1548,8 @@ private:
     CIK_DefaultArgument,
     CIK_DefaultInitializer
   };
+
+  void LexTagDefinitionForLateParsing(CachedTokens &Toks);
 
   NamedDecl *ParseCXXInlineMethodDef(AccessSpecifier AS,
                                      ParsedAttributes &AccessAttrs,

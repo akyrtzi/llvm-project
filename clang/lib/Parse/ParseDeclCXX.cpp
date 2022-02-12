@@ -2031,7 +2031,13 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     assert(Tok.is(tok::l_brace) ||
            (getLangOpts().CPlusPlus && Tok.is(tok::colon)) ||
            isClassCompatibleKeyword());
-    if (SkipBody.ShouldSkip)
+    if (getLangOpts().DeferTagParsing) {
+      CachedTokens Toks;
+      LexTagDefinitionForLateParsing(Toks);
+      Decl *D = TagOrTempResult.get();
+      Actions.AdjustDeclIfTemplate(D);
+      Actions.MarkAsLateParsedTagDefinition(cast<TagDecl>(D), Toks);
+    } else if (SkipBody.ShouldSkip)
       SkipCXXMemberSpecification(StartLoc, AttrFixitLoc, TagType,
                                  TagOrTempResult.get());
     else if (getLangOpts().CPlusPlus)

@@ -1975,7 +1975,7 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
 }
 
 void Parser::LexTagDefinitionForLateParsing(CachedTokens &Toks) {
-  if (Tok.is(tok::colon)) {
+  if (Tok.is(tok::colon) || Tok.is(tok::identifier)) {
     // FIXME: Properly handle base clauses, a left brace may appear within a template argument.
     ConsumeAndStoreUntil(tok::l_brace, Toks, /*StopAtSemi=*/false, /*ConsumeFinalToken=*/false);
   }

@@ -71,3 +71,17 @@ struct __ignore_t
 {
 };
 constexpr __ignore_t<unsigned char> ignore = __ignore_t<unsigned char>();
+
+template <class ..._Tp>
+class tuple {};
+template <class _T1, class _T2>
+struct pair {
+  template <class... _Args1, class... _Args2>
+  pair(tuple<_Args1...>& __first_args, tuple<_Args2...>& __second_args);
+};
+template <class _T1, class _T2>
+template <class... _Args1, class... _Args2>
+inline
+pair<_T1, _T2>::pair(tuple<_Args1...>& __first_args, tuple<_Args2...>& __second_args)
+{
+}

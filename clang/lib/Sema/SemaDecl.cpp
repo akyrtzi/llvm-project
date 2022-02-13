@@ -1523,11 +1523,18 @@ void Sema::PushOnScopeChains(NamedDecl *D, Scope *S, bool AddToContext) {
 
   S->AddDecl(D);
 
+  AddDeclToNameResolver(D, S);
+  warnOnReservedIdentifier(D);
+}
+
+void Sema::AddDeclToNameResolver(NamedDecl *D, Scope *S) {
   if (isa<LabelDecl>(D) && !cast<LabelDecl>(D)->isGnuLocal()) {
     // Implicitly-generated labels may end up getting generated in an order that
     // isn't strictly lexical, which breaks name lookup. Be careful to insert
     // the label at the appropriate place in the identifier chain.
-    for (I = IdResolver.begin(D->getDeclName()); I != IEnd; ++I) {
+    IdentifierResolver::iterator I = IdResolver.begin(D->getDeclName()),
+                                 IEnd = IdResolver.end();
+    for (; I != IEnd; ++I) {
       DeclContext *IDC = (*I)->getLexicalDeclContext()->getRedeclContext();
       if (IDC == CurContext) {
         if (!S->isDeclScope(*I))
@@ -1540,7 +1547,6 @@ void Sema::PushOnScopeChains(NamedDecl *D, Scope *S, bool AddToContext) {
   } else {
     IdResolver.AddDecl(D);
   }
-  warnOnReservedIdentifier(D);
 }
 
 bool Sema::isDeclInScope(NamedDecl *D, DeclContext *Ctx, Scope *S,
@@ -2079,6 +2085,45 @@ void Sema::ActOnPopScope(SourceLocation Loc, Scope *S) {
       ShadowingDecls.erase(ShadowI);
     }
   }
+}
+
+Sema::SavedScopeState Sema::ActOnJumpToTranslationUnitScope() {
+  SavedScopeState State;
+  State.S = CurScope;
+  State.ShadowingDecls = std::move(ShadowingDecls);
+
+  for (Scope *S = CurScope; S != TUScope; S = S->getParent()) {
+    for (auto *TmpD : S->decls()) {
+      assert(TmpD && "This decl didn't get pushed??");
+      assert(isa<NamedDecl>(TmpD) && "Decl isn't NamedDecl?");
+      NamedDecl *D = cast<NamedDecl>(TmpD);
+      if (!D->getDeclName()) continue;
+
+      // Remove this name from our lexical scope
+      IdResolver.RemoveDecl(D);
+    }
+  }
+  CurScope = TUScope;
+  return State;
+}
+
+void Sema::ActOnReinstateSavedScope(SavedScopeState &&SavedState) {
+  SmallVector<Scope *, 8> ScopeStack;
+  for (Scope *S = SavedState.S; S != TUScope; S = S->getParent()) {
+    ScopeStack.push_back(S);
+  }
+  for (Scope *S : llvm::reverse(ScopeStack)) {
+    for (auto *TmpD : S->decls()) {
+      assert(TmpD && "This decl didn't get pushed??");
+      assert(isa<NamedDecl>(TmpD) && "Decl isn't NamedDecl?");
+      NamedDecl *D = cast<NamedDecl>(TmpD);
+      if (!D->getDeclName()) continue;
+
+      AddDeclToNameResolver(D, S);
+    }
+  }
+  ShadowingDecls = std::move(SavedState.ShadowingDecls);
+  CurScope = SavedState.S;
 }
 
 /// Look for an Objective-C class in the translation unit.

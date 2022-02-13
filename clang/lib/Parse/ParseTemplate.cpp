@@ -1887,6 +1887,18 @@ bool Parser::shouldDeferParsingTag() {
 }
 
 void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
+  Sema::SavedScopeState ScopeState = Actions.ActOnJumpToTranslationUnitScope();
+  struct ResetRAII {
+    Sema &Actions;
+    Sema::SavedScopeState &ScopeState;
+    ResetRAII(Sema &Actions, Sema::SavedScopeState &ScopeState) : Actions(Actions), ScopeState(ScopeState) {}
+    ~ResetRAII() {
+      Actions.ActOnReinstateSavedScope(std::move(ScopeState));
+    }
+  } ResetRAII(Actions, ScopeState);
+
+  SaveAndRestore<unsigned> SARTemplateParameterDepth(TemplateParameterDepth, 0);
+
   // Destroy TemplateIdAnnotations when we're done, if possible.
   DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
 

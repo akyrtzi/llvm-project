@@ -3048,6 +3048,13 @@ public:
   void ActOnPopScope(SourceLocation Loc, Scope *S);
   void ActOnTranslationUnitScope(Scope *S);
 
+  struct SavedScopeState {
+    Scope *S;
+    llvm::DenseMap<const NamedDecl *, const NamedDecl *> ShadowingDecls;
+  };
+  SavedScopeState ActOnJumpToTranslationUnitScope();
+  void ActOnReinstateSavedScope(SavedScopeState &&SavedState);
+
   Decl *ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS, DeclSpec &DS,
                                    RecordDecl *&AnonRecord);
   Decl *ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS, DeclSpec &DS,
@@ -3322,6 +3329,8 @@ public:
 
   /// Add this decl to the scope shadowed decl chains.
   void PushOnScopeChains(NamedDecl *D, Scope *S, bool AddToContext = true);
+
+  void AddDeclToNameResolver(NamedDecl *D, Scope *S);
 
   /// isDeclInScope - If 'Ctx' is a function/method, isDeclInScope returns true
   /// if 'D' is in Scope 'S', otherwise 'S' is ignored and isDeclInScope returns

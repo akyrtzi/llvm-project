@@ -5190,6 +5190,11 @@ Decl *Sema::BuildAnonymousStructOrUnion(Scope *S, DeclSpec &DS,
                                         AccessSpecifier AS,
                                         RecordDecl *Record,
                                         const PrintingPolicy &Policy) {
+  if (Record->hasDeferredParsedDefinition()) {
+    // Parse eagerly so its members are injected into the parent context.
+    ParseDeferredParsedTag(Record);
+  }
+
   DeclContext *Owner = Record->getDeclContext();
 
   // Diagnose whether this anonymous struct/union is an extension.

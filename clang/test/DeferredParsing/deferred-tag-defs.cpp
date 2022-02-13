@@ -84,6 +84,17 @@ class Templ<char> {
 void Templ<char>::meth(SomeTy o) {}
 
 
+class OptionalStorage {
+  union {
+    char empty;
+    int value;
+  };
+public:
+  OptionalStorage() : empty{} {}
+};
+OptionalStorage optSV;
+
+
 template <class _Tp, _Tp __v>
 struct integral_constant
 {

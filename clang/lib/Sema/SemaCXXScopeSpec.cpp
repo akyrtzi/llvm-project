@@ -187,6 +187,17 @@ CXXRecordDecl *Sema::getCurrentInstantiationOf(NestedNameSpecifier *NNS) {
   return ::getCurrentInstantiationOf(T, CurContext);
 }
 
+bool Sema::RequireCompleteOrParsedDependentDeclContext(CXXScopeSpec &SS, DeclContext *DC) {
+  if (DC->isDependentContext()) {
+    if (TagDecl *TD = dyn_cast<TagDecl>(DC)) {
+      if (TD->hasDeferredParsedDefinition())
+        ParseDeferredParsedTag(TD);
+    }
+    return false;
+  }
+  return RequireCompleteDeclContext(SS, DC);
+}
+
 /// Require that the context specified by SS be complete.
 ///
 /// If SS refers to a type, this routine checks whether the type is
@@ -428,8 +439,7 @@ bool Sema::isNonTypeNestedNameSpecifier(Scope *S, CXXScopeSpec &SS,
     // nested-name-specifier.
 
     // The declaration context must be complete.
-    if (!LookupCtx->isDependentContext() &&
-        RequireCompleteDeclContext(SS, LookupCtx))
+    if (RequireCompleteOrParsedDependentDeclContext(SS, LookupCtx))
       return false;
 
     LookupQualifiedName(Found, LookupCtx);
@@ -538,8 +548,7 @@ bool Sema::BuildCXXNestedNameSpecifier(Scope *S, NestedNameSpecInfo &IdInfo,
     // nested-name-specifier.
 
     // The declaration context must be complete.
-    if (!LookupCtx->isDependentContext() &&
-        RequireCompleteDeclContext(SS, LookupCtx))
+    if (RequireCompleteOrParsedDependentDeclContext(SS, LookupCtx))
       return true;
 
     LookupQualifiedName(Found, LookupCtx);
@@ -1099,7 +1108,7 @@ bool Sema::ActOnCXXEnterDeclaratorScope(Scope *S, CXXScopeSpec &SS) {
 
   // Before we enter a declarator's context, we need to make sure that
   // it is a complete declaration context.
-  if (!DC->isDependentContext() && RequireCompleteDeclContext(SS, DC))
+  if (RequireCompleteOrParsedDependentDeclContext(SS, DC))
     return true;
 
   EnterDeclaratorContext(S, DC);

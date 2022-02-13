@@ -12872,8 +12872,7 @@ bool Sema::CheckUsingDeclQualifier(SourceLocation UsingLoc, bool HasTypename,
     return true;
   }
 
-  if (!NamedContext->isDependentContext() &&
-      RequireCompleteDeclContext(const_cast<CXXScopeSpec&>(SS), NamedContext))
+  if (RequireCompleteOrParsedDependentDeclContext(const_cast<CXXScopeSpec&>(SS), NamedContext))
     return true;
 
   if (getLangOpts().CPlusPlus11) {

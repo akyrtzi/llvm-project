@@ -58,6 +58,15 @@ void tagInFn() {
   };
 }
 
+template <typename T>
+class Templ {
+  typedef T SomeTy;
+  void meth(SomeTy o);
+};
+template <typename T>
+void Templ<T>::meth(SomeTy o) {}
+
+
 template <class _Tp, _Tp __v>
 struct integral_constant
 {

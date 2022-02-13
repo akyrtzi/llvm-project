@@ -6541,6 +6541,7 @@ public:
                                  bool DiscardedValue, bool IsConstexpr = false);
   StmtResult ActOnFinishFullStmt(Stmt *Stmt);
 
+  bool RequireCompleteOrParsedDependentDeclContext(CXXScopeSpec &SS, DeclContext *DC);
   // Marks SS invalid if it represents an incomplete type.
   bool RequireCompleteDeclContext(CXXScopeSpec &SS, DeclContext *DC);
   // Complete an enum decl, maybe without a scope spec.

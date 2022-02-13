@@ -1488,6 +1488,16 @@ public:
   /// caching of tokens is on.
   bool isBacktrackEnabled() const { return !BacktrackPositions.empty(); }
 
+  struct SavedBacktrackingState {
+    CachedTokensTy CachedTokens;
+    CachedTokensTy::size_type CachedLexPos;
+    std::vector<CachedTokensTy::size_type> BacktrackPositions;
+    bool InCachingLexMode;
+  };
+
+  SavedBacktrackingState saveAndResetBacktrackingState();
+  void restoreBacktrackingState(SavedBacktrackingState &&State);
+
   /// Lex the next token for this preprocessor.
   void Lex(Token &Result);
 

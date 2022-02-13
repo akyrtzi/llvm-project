@@ -45,6 +45,28 @@ void Preprocessor::Backtrack() {
   recomputeCurLexerKind();
 }
 
+Preprocessor::SavedBacktrackingState Preprocessor::saveAndResetBacktrackingState() {
+  SavedBacktrackingState State;
+  State.CachedTokens = std::move(CachedTokens);
+  State.CachedLexPos = CachedLexPos;
+  CachedLexPos = 0;
+  State.BacktrackPositions = std::move(BacktrackPositions);
+  State.InCachingLexMode = InCachingLexMode();
+  if (State.InCachingLexMode)
+    ExitCachingLexMode();
+  return State;
+}
+
+void Preprocessor::restoreBacktrackingState(SavedBacktrackingState &&State) {
+  assert(!InCachingLexMode());
+  assert(!isBacktrackEnabled());
+  CachedTokens = std::move(State.CachedTokens);
+  CachedLexPos = std::move(State.CachedLexPos);
+  BacktrackPositions = std::move(State.BacktrackPositions);
+  if (State.InCachingLexMode)
+    EnterCachingLexModeUnchecked();
+}
+
 void Preprocessor::CachingLex(Token &Result) {
   if (!InCachingLexMode())
     return;

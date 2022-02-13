@@ -190,8 +190,9 @@ CXXRecordDecl *Sema::getCurrentInstantiationOf(NestedNameSpecifier *NNS) {
 bool Sema::RequireCompleteOrParsedDependentDeclContext(CXXScopeSpec &SS, DeclContext *DC) {
   if (DC->isDependentContext()) {
     if (TagDecl *TD = dyn_cast<TagDecl>(DC)) {
-      if (TD->hasDeferredParsedDefinition())
-        ParseDeferredParsedTag(TD);
+      if (TagDecl *Def = TD->getDefinition())
+        if (Def->hasDeferredParsedDefinition())
+          ParseDeferredParsedTag(Def);
     }
     return false;
   }
@@ -213,8 +214,10 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
 
   TagDecl *tag = dyn_cast<TagDecl>(DC);
 
-  if (tag && tag->hasDeferredParsedDefinition()) {
-    ParseDeferredParsedTag(tag);
+  if (tag) {
+    if (TagDecl *Def = tag->getDefinition())
+      if (Def->hasDeferredParsedDefinition())
+        ParseDeferredParsedTag(Def);
   }
 
   // If this is a dependent type, then we consider it complete.

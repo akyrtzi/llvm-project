@@ -59,6 +59,8 @@ void tagInFn() {
 }
 
 template <typename T>
+class Templ;
+template <typename T>
 class Templ {
   typedef T SomeTy;
   void meth(SomeTy o);

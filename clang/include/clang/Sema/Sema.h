@@ -3049,10 +3049,11 @@ public:
   void ActOnTranslationUnitScope(Scope *S);
 
   struct SavedScopeState {
-    Scope *S;
+    Scope *OriginalScope;
+    Scope *JumpedToScope;
     llvm::DenseMap<const NamedDecl *, const NamedDecl *> ShadowingDecls;
   };
-  SavedScopeState ActOnJumpToTranslationUnitScope();
+  SavedScopeState ActOnJumpToCommonScopeAs(DeclContext *DC);
   void ActOnReinstateSavedScope(SavedScopeState &&SavedState);
 
   Decl *ParsedFreeStandingDeclSpec(Scope *S, AccessSpecifier AS, DeclSpec &DS,

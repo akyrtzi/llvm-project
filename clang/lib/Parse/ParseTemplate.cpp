@@ -1887,7 +1887,7 @@ bool Parser::shouldDeferParsingTag() {
 }
 
 void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
-  Sema::SavedScopeState ScopeState = Actions.ActOnJumpToTranslationUnitScope();
+  Sema::SavedScopeState ScopeState = Actions.ActOnJumpToCommonScopeAs(TagD->getLexicalDeclContext());
   Preprocessor::SavedBacktrackingState PPBacktrackState = PP.saveAndResetBacktrackingState();
   struct ResetRAII {
     Sema &Actions;

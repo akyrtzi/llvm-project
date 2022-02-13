@@ -2086,12 +2086,22 @@ void Sema::ActOnPopScope(SourceLocation Loc, Scope *S) {
   }
 }
 
-Sema::SavedScopeState Sema::ActOnJumpToTranslationUnitScope() {
+Sema::SavedScopeState Sema::ActOnJumpToCommonScopeAs(DeclContext *CommonDC) {
   SavedScopeState State;
-  State.S = CurScope;
+  State.OriginalScope = CurScope;
   State.ShadowingDecls = std::move(ShadowingDecls);
 
-  for (Scope *S = CurScope; S != TUScope; S = S->getParent()) {
+  llvm::SmallPtrSet<DeclContext *, 8> DCSet;
+  for (DeclContext *DC = CommonDC; !DC->isTranslationUnit(); DC = DC->getLexicalParent()) {
+    DCSet.insert(DC->getPrimaryContext());
+  }
+
+  Scope *S = CurScope;
+  for (; S != TUScope; S = S->getParent()) {
+    if (DeclContext *SDC = S->getLookupEntity()) {
+      if (SDC->isTranslationUnit() || DCSet.contains(SDC->getPrimaryContext()))
+        break;
+    }
     for (auto *TmpD : S->decls()) {
       assert(TmpD && "This decl didn't get pushed??");
       assert(isa<NamedDecl>(TmpD) && "Decl isn't NamedDecl?");
@@ -2102,13 +2112,14 @@ Sema::SavedScopeState Sema::ActOnJumpToTranslationUnitScope() {
       IdResolver.RemoveDecl(D);
     }
   }
-  CurScope = TUScope;
+  assert(S);
+  State.JumpedToScope = CurScope = S;
   return State;
 }
 
 void Sema::ActOnReinstateSavedScope(SavedScopeState &&SavedState) {
   SmallVector<Scope *, 8> ScopeStack;
-  for (Scope *S = SavedState.S; S != TUScope; S = S->getParent()) {
+  for (Scope *S = SavedState.OriginalScope; S != SavedState.JumpedToScope; S = S->getParent()) {
     ScopeStack.push_back(S);
   }
   for (Scope *S : llvm::reverse(ScopeStack)) {
@@ -2122,7 +2133,7 @@ void Sema::ActOnReinstateSavedScope(SavedScopeState &&SavedState) {
     }
   }
   ShadowingDecls = std::move(SavedState.ShadowingDecls);
-  CurScope = SavedState.S;
+  CurScope = SavedState.OriginalScope;
 }
 
 /// Look for an Objective-C class in the translation unit.

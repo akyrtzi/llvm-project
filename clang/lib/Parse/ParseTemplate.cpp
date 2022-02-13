@@ -1936,9 +1936,9 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
   assert(TagD->hasDeferredParsedDefinition());
   // Put the current token at the end of the new token stream so that it
   // doesn't get lost.
-  const_cast<Token &>(TagD->CachedDefTokens.data()[TagD->CachedDefTokens.size()-1]) = Tok;
-  PP.EnterTokenStream(TagD->CachedDefTokens, true, /*IsReinject*/ true);
-  TagD->CachedDefTokens = ArrayRef<Token>();
+  ArrayRef<Token> CachedTokens = TagD->takeCachedTokensForDefinition();
+  const_cast<Token &>(CachedTokens.data()[CachedTokens.size()-1]) = Tok;
+  PP.EnterTokenStream(CachedTokens, true, /*IsReinject*/ true);
 
   // Consume the previously pushed token.
   ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);

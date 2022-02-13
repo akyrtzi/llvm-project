@@ -1,5 +1,9 @@
 // RUN: %clang_cc1 -std=c++17 -fsyntax-only -verify -fdefer-tag-parsing %s
 
+typedef union {
+  char c;
+} TagFromTypedef;
+
 struct StructWithErrorInDef1 {
   nonexistent + nonexistent;
 };
@@ -67,6 +71,15 @@ class Templ {
 };
 template <typename T>
 void Templ<T>::meth(SomeTy o) {}
+
+template <>
+class Templ<char>;
+template <>
+class Templ<char> {
+  typedef char SomeTy;
+  void meth(SomeTy o);
+};
+void Templ<char>::meth(SomeTy o) {}
 
 
 template <class _Tp, _Tp __v>

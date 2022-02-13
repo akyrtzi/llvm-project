@@ -3372,6 +3372,8 @@ private:
   /// otherwise, it is a null (TypedefNameDecl) pointer.
   llvm::PointerUnion<TypedefNameDecl *, ExtInfo *> TypedefNameDeclOrQualifier;
 
+  ArrayRef<Token> CachedDefTokens;
+
   bool hasExtInfo() const { return TypedefNameDeclOrQualifier.is<ExtInfo *>(); }
   ExtInfo *getExtInfo() { return TypedefNameDeclOrQualifier.get<ExtInfo *>(); }
   const ExtInfo *getExtInfo() const {
@@ -3427,7 +3429,19 @@ public:
   using redeclarable_base::getMostRecentDecl;
   using redeclarable_base::isFirstDecl;
 
-  ArrayRef<Token> CachedDefTokens;
+  void setCachedTokensForDefinition(ArrayRef<Token> Tokens) {
+    CachedDefTokens = Tokens;
+    setBeingDefined(false);
+    setCompleteDefinition(true);
+  }
+
+  ArrayRef<Token> takeCachedTokensForDefinition() {
+    ArrayRef<Token> Toks = CachedDefTokens;
+    CachedDefTokens = None;
+    setBeingDefined(true);
+    setCompleteDefinition(false);
+    return Toks;
+  }
 
   bool hasDeferredParsedDefinition() const { return !CachedDefTokens.empty(); }
 

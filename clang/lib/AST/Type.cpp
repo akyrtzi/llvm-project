@@ -2243,7 +2243,7 @@ bool Type::isIncompleteType(NamedDecl **Def) const {
     RecordDecl *Rec = cast<RecordType>(CanonicalType)->getDecl();
     if (Def)
       *Def = Rec;
-    return !Rec->isCompleteDefinition();
+    return !Rec->isCompleteDefinition() || Rec->hasDeferredParsedDefinition();
   }
   case ConstantArray:
   case VariableArray:

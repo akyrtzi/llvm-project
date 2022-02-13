@@ -10958,7 +10958,7 @@ void Sema::MarkAsLateParsedTagDefinition(TagDecl *TD, CachedTokens &Toks) {
   Token &LastTok = ToksPtr[Toks.size()];
   LastTok.startToken();
   LastTok.setKind(tok::eof);
-  TD->CachedDefTokens = llvm::makeArrayRef(ToksPtr, Toks.size() + 1);
+  TD->setCachedTokensForDefinition(llvm::makeArrayRef(ToksPtr, Toks.size() + 1));
 }
 
 void Sema::UnmarkAsLateParsedTemplate(FunctionDecl *FD) {

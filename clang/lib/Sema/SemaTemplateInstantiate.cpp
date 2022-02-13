@@ -2634,6 +2634,11 @@ Sema::InstantiateClass(SourceLocation PointOfInstantiation,
                        bool Complain) {
   CXXRecordDecl *PatternDef
     = cast_or_null<CXXRecordDecl>(Pattern->getDefinition());
+
+  if (PatternDef && PatternDef->hasDeferredParsedDefinition()) {
+    ParseDeferredParsedTag(PatternDef);
+  }
+
   if (DiagnoseUninstantiableTemplate(PointOfInstantiation, Instantiation,
                                 Instantiation->getInstantiatedFromMemberClass(),
                                      Pattern, PatternDef, TSK, Complain))
@@ -3207,10 +3212,6 @@ bool Sema::InstantiateClassTemplateSpecialization(
                                                ClassTemplateSpec, TSK);
   if (!Pattern.isUsable())
     return Pattern.isInvalid();
-
-  if (Pattern.get()->hasDeferredParsedDefinition()) {
-    ParseDeferredParsedTag(Pattern.get());
-  }
 
   return InstantiateClass(
       PointOfInstantiation, ClassTemplateSpec, Pattern.get(),

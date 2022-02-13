@@ -109,3 +109,14 @@ inline
 pair<_T1, _T2>::pair(tuple<_Args1...>& __first_args, tuple<_Args2...>& __second_args)
 {
 }
+
+template <class _Tp> struct decay {
+  public: typedef _Tp type;
+};
+template <class _Tp> struct decay;
+template <class _Tp> struct __common_type2_imp {
+ typedef typename decay<_Tp>::type type;
+};
+template <class _Duration1> typename __common_type2_imp<_Duration1>::type
+callme(const _Duration1& a);
+auto const __elapsed = callme(0);

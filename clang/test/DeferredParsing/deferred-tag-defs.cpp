@@ -1,7 +1,5 @@
 // RUN: %clang_cc1 -std=c++17 -fsyntax-only -verify -fdefer-tag-parsing %s
 
-// expected-no-diagnostics
-
 struct StructWithErrorInDef1 {
   nonexistent + nonexistent;
 };
@@ -54,6 +52,11 @@ int test4(Templ1<int> *a1, Templ1<char> *a2) {
   return a1->x + a2->y;
 }
 
+void tagInFn() {
+  struct S {
+    nonexistent x; // expected-error {{unknown type name}}
+  };
+}
 
 template <class _Tp, _Tp __v>
 struct integral_constant

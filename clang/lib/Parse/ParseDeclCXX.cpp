@@ -2031,7 +2031,7 @@ void Parser::ParseClassSpecifier(tok::TokenKind TagTokKind,
     assert(Tok.is(tok::l_brace) ||
            (getLangOpts().CPlusPlus && Tok.is(tok::colon)) ||
            isClassCompatibleKeyword());
-    if (getLangOpts().DeferTagParsing) {
+    if (getLangOpts().DeferTagParsing && shouldDeferParsingTag()) {
       CachedTokens Toks;
       LexTagDefinitionForLateParsing(Toks);
       Decl *D = TagOrTempResult.get();

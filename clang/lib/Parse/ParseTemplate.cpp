@@ -1880,6 +1880,12 @@ void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
   }
 }
 
+bool Parser::shouldDeferParsingTag() {
+  if (Actions.getCurScope()->getFnParent())
+    return false; // we are inside a function body.
+  return true;
+}
+
 void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
   // Destroy TemplateIdAnnotations when we're done, if possible.
   DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);

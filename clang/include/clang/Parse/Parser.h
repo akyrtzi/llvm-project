@@ -1534,6 +1534,7 @@ private:
 public:
   void ParseLateParsedFuncDef(FunctionDecl *FD);
   bool shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo*> &packArgs);
+  bool shouldDeferParsingTag();
   void ParseLateParsedTagDef(TagDecl *TD);
 
 private:

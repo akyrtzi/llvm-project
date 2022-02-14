@@ -1919,9 +1919,13 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
 
   // Get the list of DeclContexts to reenter.
   SmallVector<DeclContext*, 4> DeclContextsToReenter;
+  DeclContext *CurCtx = getCurScope()->getLookupEntity()->getPrimaryContext();
   for (DeclContext *DC = TagD; DC && !DC->isTranslationUnit();
-       DC = DC->getLexicalParent())
+       DC = DC->getLexicalParent()) {
+    if (DC->getPrimaryContext() == CurCtx)
+      break;
     DeclContextsToReenter.push_back(DC);
+  }
 
   // Reenter scopes from outermost to innermost.
   for (DeclContext *DC : reverse(DeclContextsToReenter)) {

@@ -95,6 +95,15 @@ public:
 OptionalStorage optSV;
 
 
+namespace NS {
+  template <typename T> class Expected;
+  class Error {
+    template <typename T> friend class Expected;
+  };
+  void cantFail(Error Err) {}
+}
+
+
 template <class _Tp, _Tp __v>
 struct integral_constant
 {

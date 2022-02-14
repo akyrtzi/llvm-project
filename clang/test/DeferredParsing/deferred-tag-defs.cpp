@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -std=c++17 -fsyntax-only -verify -fdefer-tag-parsing %s
 
 class FinalCls final {};
+FinalCls fclsgv;
 
 typedef union {
   char c;

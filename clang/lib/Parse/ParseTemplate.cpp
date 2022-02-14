@@ -1946,8 +1946,8 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
 
   // Consume the previously pushed token.
   ConsumeAnyToken(/*ConsumeCodeCompletionTok=*/true);
-  assert(Tok.isOneOf(tok::l_brace, tok::colon) &&
-         "Tag definition not starting with '{' or ':'");
+  assert(Tok.isOneOf(tok::l_brace, tok::colon, tok::identifier) &&
+         "Tag definition not starting with '{', ':' or identifier");
 
   // FIXME: Cache the parsed attributes from the eager parse.
   ParsedAttributesWithRange attrs(AttrFactory);

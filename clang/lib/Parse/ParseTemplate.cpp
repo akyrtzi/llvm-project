@@ -1911,10 +1911,6 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
   // Track template parameter depth.
   TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
 
-  // To restore the context after late parsing.
-  Sema::ContextRAII GlobalSavedContext(
-      Actions, Actions.Context.getTranslationUnitDecl());
-
   MultiParseScope Scopes(*this);
 
   // Get the list of DeclContexts to reenter.
@@ -1926,6 +1922,10 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
       break;
     DeclContextsToReenter.push_back(DC);
   }
+
+  // To restore the context after late parsing.
+  Sema::ContextRAII GlobalSavedContext(
+      Actions, DeclContextsToReenter.back()->getLexicalParent());
 
   // Reenter scopes from outermost to innermost.
   for (DeclContext *DC : reverse(DeclContextsToReenter)) {
@@ -1970,9 +1970,6 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
       TagType = DeclSpec::TST_enum;
       break;
   }
-
-  // Recreate the containing tag DeclContext.
-  Sema::ContextRAII TagSavedContext(Actions, TagD->getLexicalParent());
 
   ParseCXXMemberSpecification(TagD->getLocation(), SourceLocation(), attrs, TagType,
                               TagD);

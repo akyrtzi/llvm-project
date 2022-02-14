@@ -94,6 +94,14 @@ public:
 };
 OptionalStorage optSV;
 
+namespace ns {
+namespace mycls {
+  class Cls {};
+}
+}
+namespace ns {
+  mycls::Cls cc;
+}
 
 namespace NS {
   template <typename T> class Expected;

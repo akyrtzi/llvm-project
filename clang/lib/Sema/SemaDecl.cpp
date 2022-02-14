@@ -2098,9 +2098,11 @@ Sema::SavedScopeState Sema::ActOnJumpToCommonScopeAs(DeclContext *CommonDC) {
 
   Scope *S = CurScope;
   for (; S != TUScope; S = S->getParent()) {
-    if (DeclContext *SDC = S->getLookupEntity()) {
-      if (SDC->isTranslationUnit() || DCSet.contains(SDC->getPrimaryContext()))
-        break;
+    if (!S->isTemplateParamScope()) {
+      if (DeclContext *SDC = S->getLookupEntity()) {
+        if (SDC->isTranslationUnit() || DCSet.contains(SDC->getPrimaryContext()))
+          break;
+      }
     }
     for (auto *TmpD : S->decls()) {
       assert(TmpD && "This decl didn't get pushed??");

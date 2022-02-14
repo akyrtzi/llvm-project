@@ -142,3 +142,9 @@ template <class _Tp> struct __common_type2_imp {
 template <class _Duration1> typename __common_type2_imp<_Duration1>::type
 callme(const _Duration1& a);
 auto const __elapsed = callme(0);
+
+struct __is_referenceable_impl {
+  template <class _Tp> void test(_Tp);
+};
+template <class _Tp> struct __is_referenceable : __is_referenceable_impl {};
+__is_referenceable<int> gvisref;

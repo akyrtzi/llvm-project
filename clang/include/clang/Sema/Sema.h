@@ -7345,7 +7345,7 @@ public:
                                        bool Virtual, AccessSpecifier Access,
                                        TypeSourceInfo *TInfo,
                                        SourceLocation EllipsisLoc);
-
+  bool RequireCompleteBaseSpecifier(CXXRecordDecl *Class, const CXXBaseSpecifier *BaseSpec);
   BaseResult ActOnBaseSpecifier(Decl *classdecl,
                                 SourceRange SpecifierRange,
                                 ParsedAttributes &Attrs,
@@ -7355,7 +7355,8 @@ public:
                                 SourceLocation EllipsisLoc);
 
   bool AttachBaseSpecifiers(CXXRecordDecl *Class,
-                            MutableArrayRef<CXXBaseSpecifier *> Bases);
+                            MutableArrayRef<CXXBaseSpecifier *> Bases,
+                            bool inheritInfoOnly = false);
   void ActOnBaseSpecifiers(Decl *ClassDecl,
                            MutableArrayRef<CXXBaseSpecifier *> Bases);
 

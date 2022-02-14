@@ -112,6 +112,21 @@ namespace NS {
   void cantFail(Error Err) {}
 }
 
+template <class T> T &makeCheck();
+template <class NodeT>
+class iplist_impl {
+public:
+  using iterator = NodeT*;
+private:
+  decltype(&makeCheck<NodeT>()) somefield;
+};
+template <class T>
+class SymbolTableList: public iplist_impl<T> {};
+class Instruction {
+  void moveBefore(SymbolTableList<Instruction>::iterator I);
+};
+SymbolTableList<Instruction> stlV;
+
 
 template <class _Tp, _Tp __v>
 struct integral_constant

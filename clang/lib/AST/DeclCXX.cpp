@@ -193,6 +193,11 @@ static bool hasRepeatedBaseClass(const CXXRecordDecl *StartRD) {
 void
 CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
                         unsigned NumBases) {
+  setBasesCopyOnly(Bases, NumBases);
+  inheritInfoFromBases();
+}
+
+void CXXRecordDecl::setBasesCopyOnly(CXXBaseSpecifier const * const *Bases, unsigned NumBases) {
   ASTContext &C = getASTContext();
 
   if (!data().Bases.isOffset() && data().NumBases > 0)
@@ -210,18 +215,29 @@ CXXRecordDecl::setBases(CXXBaseSpecifier const * const *Bases,
     data().PlainOldData = false;
   }
 
+  struct DefinitionData &Data = data();
+  Data.Bases = new(C) CXXBaseSpecifier [NumBases];
+  Data.NumBases = NumBases;
+  for (unsigned i = 0; i < NumBases; ++i) {
+    Data.getBases()[i] = *Bases[i];
+  }
+}
+
+void CXXRecordDecl::inheritInfoFromBases() {
+  ASTContext &C = getASTContext();
+
   // The set of seen virtual base types.
   llvm::SmallPtrSet<CanQualType, 8> SeenVBaseTypes;
 
   // The virtual bases of this class.
   SmallVector<const CXXBaseSpecifier *, 8> VBases;
 
-  data().Bases = new(C) CXXBaseSpecifier [NumBases];
-  data().NumBases = NumBases;
+  struct DefinitionData &Data = data();
+  CXXBaseSpecifier *Bases = Data.getBases();
+  unsigned NumBases = Data.NumBases;
   for (unsigned i = 0; i < NumBases; ++i) {
-    data().getBases()[i] = *Bases[i];
     // Keep track of inherited vbases for this base class.
-    const CXXBaseSpecifier *Base = Bases[i];
+    const CXXBaseSpecifier *Base = &Bases[i];
     QualType BaseType = Base->getType();
     // Skip dependent types; we can't do any checking on them now.
     if (BaseType->isDependentType())

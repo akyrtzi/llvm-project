@@ -2587,7 +2587,17 @@ Sema::SubstBaseSpecifiers(CXXRecordDecl *Instantiation,
       Invalid = true;
   }
 
-  if (!Invalid && AttachBaseSpecifiers(Instantiation, InstantiatedBases))
+  if (!Invalid && !Instantiation->isInvalidDecl()) {
+    Instantiation->setBasesCopyOnly(InstantiatedBases.data(), InstantiatedBases.size());
+    for (CXXBaseSpecifier *InstantiatedBase : InstantiatedBases) {
+      if (RequireCompleteBaseSpecifier(Instantiation, InstantiatedBase)) {
+        Invalid = true;
+        break;
+      }
+    }
+  }
+
+  if (!Invalid && AttachBaseSpecifiers(Instantiation, InstantiatedBases, /*inheritInfoOnly=*/true))
     Invalid = true;
 
   return Invalid;

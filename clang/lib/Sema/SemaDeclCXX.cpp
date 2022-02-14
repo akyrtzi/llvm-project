@@ -2547,13 +2547,25 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
     }
   }
 
+  // Create the base specifier.
+  return new (Context) CXXBaseSpecifier(SpecifierRange, Virtual,
+                                        Class->getTagKind() == TTK_Class,
+                                        Access, TInfo, EllipsisLoc);
+}
+
+bool Sema::RequireCompleteBaseSpecifier(CXXRecordDecl *Class,
+                                        const CXXBaseSpecifier *BaseSpec) {
+  SourceLocation BaseLoc = BaseSpec->getBaseTypeLoc();
+  QualType BaseType = BaseSpec->getType();
+  SourceRange SpecifierRange = BaseSpec->getSourceRange();
+
   // C++ [class.derived]p2:
   //   The class-name in a base-specifier shall not be an incompletely
   //   defined class.
   if (RequireCompleteType(BaseLoc, BaseType,
                           diag::err_incomplete_base_class, SpecifierRange)) {
     Class->setInvalidDecl();
-    return nullptr;
+    return true;
   }
 
   // If the base class is polymorphic or isn't empty, the new one is/isn't, too.
@@ -2574,7 +2586,7 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
     Diag(Class->getLocation(), diag::err_mismatched_code_seg_base);
     Diag(CXXBaseDecl->getLocation(), diag::note_base_class_specified_here)
       << CXXBaseDecl;
-    return nullptr;
+    return true;
   }
 
   // A class which contains a flexible array member is not suitable for use as a
@@ -2586,7 +2598,7 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
   if (CXXBaseDecl->hasFlexibleArrayMember()) {
     Diag(BaseLoc, diag::err_base_class_has_flexible_array_member)
       << CXXBaseDecl->getDeclName();
-    return nullptr;
+    return true;
   }
 
   // C++ [class]p3:
@@ -2598,16 +2610,12 @@ Sema::CheckBaseSpecifier(CXXRecordDecl *Class,
       << FA->isSpelledAsSealed();
     Diag(CXXBaseDecl->getLocation(), diag::note_entity_declared_at)
         << CXXBaseDecl->getDeclName() << FA->getRange();
-    return nullptr;
+    return true;
   }
 
   if (BaseDecl->isInvalidDecl())
     Class->setInvalidDecl();
-
-  // Create the base specifier.
-  return new (Context) CXXBaseSpecifier(SpecifierRange, Virtual,
-                                        Class->getTagKind() == TTK_Class,
-                                        Access, TInfo, EllipsisLoc);
+  return false;
 }
 
 /// ActOnBaseSpecifier - Parsed a base specifier. A base specifier is
@@ -2653,9 +2661,16 @@ Sema::ActOnBaseSpecifier(Decl *classdecl, SourceRange SpecifierRange,
 
   if (CXXBaseSpecifier *BaseSpec = CheckBaseSpecifier(Class, SpecifierRange,
                                                       Virtual, Access, TInfo,
-                                                      EllipsisLoc))
+                                                      EllipsisLoc)) {
+    if (BaseSpec->getType()->isDependentType())
+      return BaseSpec;
+    if (RequireCompleteBaseSpecifier(Class, BaseSpec)) {
+      Context.Deallocate(BaseSpec);
+      Class->setInvalidDecl();
+      return true;
+    }
     return BaseSpec;
-  else
+  } else
     Class->setInvalidDecl();
 
   return true;
@@ -2689,7 +2704,8 @@ NoteIndirectBases(ASTContext &Context, IndirectBaseSet &Set,
 /// Performs the actual work of attaching the given base class
 /// specifiers to a C++ class.
 bool Sema::AttachBaseSpecifiers(CXXRecordDecl *Class,
-                                MutableArrayRef<CXXBaseSpecifier *> Bases) {
+                                MutableArrayRef<CXXBaseSpecifier *> Bases,
+                                bool inheritInfoOnly) {
  if (Bases.empty())
     return false;
 
@@ -2753,8 +2769,12 @@ bool Sema::AttachBaseSpecifiers(CXXRecordDecl *Class,
     }
   }
 
-  // Attach the remaining base class specifiers to the derived class.
-  Class->setBases(Bases.data(), NumGoodBases);
+  if (inheritInfoOnly) {
+    Class->inheritInfoFromBases();
+  } else {
+    // Attach the remaining base class specifiers to the derived class.
+    Class->setBases(Bases.data(), NumGoodBases);
+  }
 
   // Check that the only base classes that are duplicate are virtual.
   for (unsigned idx = 0; idx < NumGoodBases; ++idx) {

@@ -46,6 +46,16 @@ struct TemplWithErrorInDef1<char> {
 void forw3(TemplWithErrorInDef1<char> o);
 TemplWithErrorInDef1<char> *gv3;
 
+struct Top1 {
+  struct Nested1 {
+    nonexistent + nonexistent;
+  };
+  int x;
+};
+int testNested(Top1 *o) {
+  return o->x;
+}
+
 
 template <typename T>
 struct Templ1 {

@@ -1985,8 +1985,12 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
       break;
   }
 
-  ParseCXXMemberSpecification(TagD->getLocation(), SourceLocation(), attrs, TagType,
-                              TagD);
+  if (getLangOpts().CPlusPlus) {
+    ParseCXXMemberSpecification(TagD->getLocation(), SourceLocation(), attrs, TagType,
+                                TagD);
+  } else {
+    ParseStructUnionBody(TagD->getLocation(), TagType, cast<RecordDecl>(TagD));
+  }
 }
 
 void Parser::LexTagDefinitionForLateParsing(CachedTokens &Toks) {

@@ -1128,7 +1128,7 @@ CGDebugInfo::getOrCreateRecordFwdDecl(const RecordType *Ty,
   uint32_t Align = 0;
 
   const RecordDecl *D = RD->getDefinition();
-  if (D && D->isCompleteDefinition())
+  if (D && !D->hasDeferredParsedDefinition() && D->isCompleteDefinition())
     Size = CGM.getContext().getTypeSize(Ty);
 
   llvm::DINode::DIFlags Flags = llvm::DINode::FlagFwdDecl;
@@ -2648,7 +2648,7 @@ llvm::DIType *CGDebugInfo::CreateTypeDefinition(const RecordType *Ty) {
   llvm::DICompositeType *FwdDecl = getOrCreateLimitedType(Ty);
 
   const RecordDecl *D = RD->getDefinition();
-  if (!D || !D->isCompleteDefinition())
+  if (!D || D->hasDeferredParsedDefinition() || !D->isCompleteDefinition())
     return FwdDecl;
 
   if (const auto *CXXDecl = dyn_cast<CXXRecordDecl>(RD))
@@ -3615,7 +3615,7 @@ llvm::DICompositeType *CGDebugInfo::CreateLimitedType(const RecordType *Ty) {
   // If this is just a forward or incomplete declaration, construct an
   // appropriately marked node and just return it.
   const RecordDecl *D = RD->getDefinition();
-  if (!D || !D->isCompleteDefinition())
+  if (!D || D->hasDeferredParsedDefinition() || !D->isCompleteDefinition())
     return getOrCreateRecordFwdDecl(Ty, RDContext);
 
   uint64_t Size = CGM.getContext().getTypeSize(Ty);

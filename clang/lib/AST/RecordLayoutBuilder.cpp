@@ -3275,6 +3275,7 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
     getExternalSource()->CompleteType(const_cast<RecordDecl*>(D));
 
   D = D->getDefinition();
+  assert(!D->hasDeferredParsedDefinition() && "requesting layout for deferred parsed record");
   assert(D && "Cannot get layout of forward declarations!");
   assert(!D->isInvalidDecl() && "Cannot get layout of invalid decl!");
   assert(D->isCompleteDefinition() && "Cannot layout type before complete!");

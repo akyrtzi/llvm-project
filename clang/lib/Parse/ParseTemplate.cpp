@@ -1804,6 +1804,10 @@ bool Parser::shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo
 }
 
 void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
+  // Set evaluation context as it starts in a TU.
+  EnterExpressionEvaluationContext EvalCtx(
+      Actions, Sema::ExpressionEvaluationContext::PotentiallyEvaluated);
+
   // Destroy TemplateIdAnnotations when we're done, if possible.
   DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
 
@@ -1916,6 +1920,10 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
         P.ClassStack = std::move(SavedClassStack);
     }
   } ResetRAII(TagD, Actions, *this, PP);
+
+  // Set evaluation context as it starts in a TU.
+  EnterExpressionEvaluationContext EvalCtx(
+      Actions, Sema::ExpressionEvaluationContext::PotentiallyEvaluated);
 
   SaveAndRestore<unsigned> SARTemplateParameterDepth(TemplateParameterDepth, 0);
 

@@ -1887,21 +1887,28 @@ bool Parser::shouldDeferParsingTag() {
 }
 
 void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
-  Sema::SavedScopeState ScopeState = Actions.ActOnJumpToCommonScopeAs(TagD->getLexicalDeclContext());
-  Preprocessor::SavedBacktrackingState PPBacktrackState = PP.saveAndResetBacktrackingState();
+  // Save current state and restore it after we are done parsing the tag.
   struct ResetRAII {
     Sema &Actions;
-    Sema::SavedScopeState &ScopeState;
+    Parser &P;
     Preprocessor &PP;
-    Preprocessor::SavedBacktrackingState &PPBacktrackState;
-    ResetRAII(Sema &Actions, Sema::SavedScopeState &ScopeState,
-              Preprocessor &PP, Preprocessor::SavedBacktrackingState &PPBacktrackState)
-    : Actions(Actions), ScopeState(ScopeState), PP(PP), PPBacktrackState(PPBacktrackState) {}
+
+    Sema::SavedScopeState ScopeState;
+    std::stack<ParsingClass *> SavedClassStack;
+    Preprocessor::SavedBacktrackingState PPBacktrackState;
+
+    ResetRAII(TagDecl *TagD, Sema &Actions, Parser &P, Preprocessor &PP)
+    : Actions(Actions), P(P), PP(PP),
+      ScopeState(Actions.ActOnJumpToCommonScopeAs(TagD->getLexicalDeclContext())),
+      SavedClassStack(std::move(P.ClassStack)),
+      PPBacktrackState(PP.saveAndResetBacktrackingState()) {}
+
     ~ResetRAII() {
       Actions.ActOnReinstateSavedScope(std::move(ScopeState));
+      P.ClassStack = std::move(SavedClassStack);
       PP.restoreBacktrackingState(std::move(PPBacktrackState));
     }
-  } ResetRAII(Actions, ScopeState, PP, PPBacktrackState);
+  } ResetRAII(TagD, Actions, *this, PP);
 
   SaveAndRestore<unsigned> SARTemplateParameterDepth(TemplateParameterDepth, 0);
 

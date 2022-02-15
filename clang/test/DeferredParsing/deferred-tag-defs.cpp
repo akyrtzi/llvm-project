@@ -137,6 +137,24 @@ class Instruction {
 };
 SymbolTableList<Instruction> stlV;
 
+class MCRegisterInfo {
+public:
+  class DiffListIterator {
+    unsigned short Val = 0;
+  };
+  class mc_difflist_iterator {
+    MCRegisterInfo::DiffListIterator Iter;
+  };
+  class mc_subreg_iterator : public mc_difflist_iterator {
+  };
+  void subregs() const {
+    mc_subreg_iterator();
+  }
+};
+class MCSuperRegIterator : public MCRegisterInfo::DiffListIterator {
+};
+MCSuperRegIterator MCSRGV;
+
 
 template <class _Tp, _Tp __v>
 struct integral_constant

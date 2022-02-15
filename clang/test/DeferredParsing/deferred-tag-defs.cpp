@@ -155,6 +155,16 @@ class MCSuperRegIterator : public MCRegisterInfo::DiffListIterator {
 };
 MCSuperRegIterator MCSRGV;
 
+class APFloat {
+  struct Storage {
+    void innerMeth() {
+      outerMeth();
+    }
+  } U;
+  static void outerMeth();
+};
+APFloat APFGV;
+
 
 template <class _Tp, _Tp __v>
 struct integral_constant

@@ -1900,13 +1900,20 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
     ResetRAII(TagDecl *TagD, Sema &Actions, Parser &P, Preprocessor &PP)
     : Actions(Actions), P(P), PP(PP),
       ScopeState(Actions.ActOnJumpToCommonScopeAs(TagD->getLexicalDeclContext())),
-      SavedClassStack(std::move(P.ClassStack)),
-      PPBacktrackState(PP.saveAndResetBacktrackingState()) {}
+      PPBacktrackState(PP.saveAndResetBacktrackingState())
+    {
+      if (!P.ClassStack.empty()) {
+        if (TagD->getLexicalDeclContext() != cast<DeclContext>(P.ClassStack.top()->TagOrTemplate)) {
+          SavedClassStack = std::move(P.ClassStack);
+        }
+      }
+    }
 
     ~ResetRAII() {
       Actions.ActOnReinstateSavedScope(std::move(ScopeState));
-      P.ClassStack = std::move(SavedClassStack);
       PP.restoreBacktrackingState(std::move(PPBacktrackState));
+      if (!SavedClassStack.empty())
+        P.ClassStack = std::move(SavedClassStack);
     }
   } ResetRAII(TagD, Actions, *this, PP);
 

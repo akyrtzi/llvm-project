@@ -1393,6 +1393,7 @@ void CodeGenFunction::GenerateCode(GlobalDecl GD, llvm::Function *Fn,
   };
   if (shouldParseDeferredBody()) {
     CGM.getSema().ParseDeferredParsedFunction(const_cast<FunctionDecl *>(FD));
+    CGM.getSema().parsedDeferredDecls();
   }
 
   // The function might not have a body if we're generating thunks for a

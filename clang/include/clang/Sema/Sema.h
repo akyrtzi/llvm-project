@@ -916,7 +916,7 @@ public:
 
   void ParseDeferredParsedFunction(FunctionDecl *FD);
   void ParseDeferredParsedTag(TagDecl *TD);
-  void parsedDeferredDecl(Decl *D);
+  void parsedDeferredDecls();
   void completeTypesOfFunctionDef(const FunctionDecl *FD);
 
   class DelayedDiagnostics;

@@ -18891,7 +18891,6 @@ void Sema::ParseDeferredParsedFunction(FunctionDecl *FD) {
   Parser &P = *(Parser*)OpaqueParser;
   assert(FD->hasDeferredParsedBody());
   P.ParseLateParsedFuncDef(FD);
-  parsedDeferredDecl(FD);
 }
 
 void Sema::ParseDeferredParsedTag(TagDecl *TD) {
@@ -18899,10 +18898,9 @@ void Sema::ParseDeferredParsedTag(TagDecl *TD) {
   assert(TD->hasDeferredParsedDefinition());
   P.ParseLateParsedTagDef(TD);
   assert(!TD->hasDeferredParsedDefinition());
-  parsedDeferredDecl(TD);
 }
 
-void Sema::parsedDeferredDecl(Decl *D) {
+void Sema::parsedDeferredDecls() {
   if (!HasFinishedTU)
     return;
   // Handle potential new instantiations or used vtables.

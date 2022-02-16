@@ -335,8 +335,12 @@ struct Parser::ReenterClassScopeRAII : ReenterTemplateScopeRAII {
 void Parser::ParseLexedMethodDeclarations(ParsingClass &Class) {
   ReenterClassScopeRAII InClassScope(*this, Class);
 
-  for (LateParsedDeclaration *LateD : Class.LateParsedDeclarations)
+  // More late parsed declaration may be added lazily due to late parsed inner
+  // tag definitions.
+  for (unsigned I = 0; I != Class.LateParsedDeclarations.size(); I++) {
+    LateParsedDeclaration *LateD = Class.LateParsedDeclarations[I];
     LateD->ParseLexedMethodDeclarations();
+  }
 }
 
 void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {

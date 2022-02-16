@@ -165,6 +165,16 @@ class APFloat {
 };
 APFloat APFGV;
 
+class ValueLatticeElement {
+public:
+  struct MergeOptions {
+    MergeOptions() : MergeOptions(false) {}
+    MergeOptions(bool MayIncludeUndef, unsigned MaxWidenSteps = 1);
+  };
+  bool markConstantRange(MergeOptions Opts = MergeOptions());
+};
+ValueLatticeElement VLEGV;
+
 
 template <class _Tp, _Tp __v>
 struct integral_constant

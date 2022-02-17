@@ -1804,6 +1804,22 @@ bool Parser::shouldDeferParsing(FunctionDecl *FD, SmallVectorImpl<IdentifierInfo
 }
 
 void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
+  // Save current state and restore it after we are done parsing the tag.
+  struct ResetRAII {
+    Sema &Actions;
+    Sema::SavedScopeState ScopeState;
+
+    ResetRAII(FunctionDecl *FunD, Sema &Actions)
+    : Actions(Actions),
+      ScopeState(Actions.ActOnJumpToCommonScopeAs(FunD->getLexicalDeclContext()))
+    {
+    }
+
+    ~ResetRAII() {
+      Actions.ActOnReinstateSavedScope(std::move(ScopeState));
+    }
+  } ResetRAII(FunD, Actions);
+
   // Set evaluation context as it starts in a TU.
   EnterExpressionEvaluationContext EvalCtx(
       Actions, Sema::ExpressionEvaluationContext::PotentiallyEvaluated);
@@ -1814,17 +1830,21 @@ void Parser::ParseLateParsedFuncDef(FunctionDecl *FunD) {
   // Track template parameter depth.
   TemplateParameterDepthRAII CurTemplateDepthTracker(TemplateParameterDepth);
 
-  // To restore the context after late parsing.
-  Sema::ContextRAII GlobalSavedContext(
-      Actions, Actions.Context.getTranslationUnitDecl());
-
   MultiParseScope Scopes(*this);
 
   // Get the list of DeclContexts to reenter.
-  SmallVector<DeclContext *, 4> DeclContextsToReenter;
+  SmallVector<DeclContext*, 4> DeclContextsToReenter;
+  DeclContext *CurCtx = getCurScope()->getLookupEntity()->getPrimaryContext();
   for (DeclContext *DC = FunD; DC && !DC->isTranslationUnit();
-       DC = DC->getLexicalParent())
+       DC = DC->getLexicalParent()) {
+    if (DC->getPrimaryContext() == CurCtx)
+      break;
     DeclContextsToReenter.push_back(DC);
+  }
+
+  // To restore the context after late parsing.
+  Sema::ContextRAII GlobalSavedContext(
+      Actions, DeclContextsToReenter.back()->getLexicalParent());
 
   // Reenter scopes from outermost to innermost.
   for (DeclContext *DC : reverse(DeclContextsToReenter)) {
@@ -1954,7 +1974,7 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
     CurTemplateDepthTracker.addDepth(
         ReenterTemplateScopes(Scopes, cast<Decl>(DC)));
     Scopes.Enter(Scope::DeclScope);
-    // We'll reenter the function context itself below.
+    // We'll reenter the tag context itself below.
     if (DC != TagD)
       Actions.PushDeclContext(Actions.getCurScope(), DC);
   }

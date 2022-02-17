@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++17 -fsyntax-only -emit-llvm-only -debug-info-kind=standalone -fdefer-tag-parsing %s
+// RUN: %clang_cc1 -std=c++17 -emit-llvm-only -debug-info-kind=standalone -fdefer-tag-parsing %s
 
 struct StructWithErrorInDef1 {
   nonexistent + nonexistent;

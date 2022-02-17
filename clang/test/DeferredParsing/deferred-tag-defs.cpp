@@ -155,6 +155,14 @@ class MCSuperRegIterator : public MCRegisterInfo::DiffListIterator {
 };
 MCSuperRegIterator MCSRGV;
 
+class ArenaAllocator {
+  struct AllocatorNode {
+    char *Buf = nullptr;
+  };
+  void addNode() { new AllocatorNode; }
+};
+ArenaAllocator AAGV;
+
 class APFloat {
   struct Storage {
     void innerMeth() {

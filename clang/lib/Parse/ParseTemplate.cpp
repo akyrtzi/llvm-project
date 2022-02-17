@@ -1927,7 +1927,8 @@ void Parser::ParseLateParsedTagDef(TagDecl *TagD) {
       PPBacktrackState(PP.saveAndResetBacktrackingState())
     {
       if (!P.ClassStack.empty()) {
-        if (TagD->getLexicalDeclContext() != cast<DeclContext>(P.ClassStack.top()->TagOrTemplate)) {
+        if (TagD->getLexicalDeclContext() != cast<DeclContext>(P.ClassStack.top()->TagOrTemplate) ||
+            P.ClassStack.top()->StartedParsingLexedMethodDefs) {
           SavedClassStack = std::move(P.ClassStack);
         }
       }

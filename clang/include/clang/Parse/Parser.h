@@ -1421,6 +1421,7 @@ private:
   struct ParsingClass {
     ParsingClass(Decl *TagOrTemplate, bool TopLevelClass, bool IsInterface)
         : TopLevelClass(TopLevelClass), IsInterface(IsInterface),
+          StartedParsingLexedMethodDefs(false),
           TagOrTemplate(TagOrTemplate) {}
 
     /// Whether this is a "top-level" class, meaning that it is
@@ -1429,6 +1430,8 @@ private:
 
     /// Whether this class is an __interface.
     bool IsInterface : 1;
+
+    bool StartedParsingLexedMethodDefs : 1;
 
     /// The class or class template whose definition we are parsing.
     Decl *TagOrTemplate;

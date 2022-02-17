@@ -528,6 +528,7 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
 void Parser::ParseLexedMethodDefs(ParsingClass &Class) {
   ReenterClassScopeRAII InClassScope(*this, Class);
 
+  Class.StartedParsingLexedMethodDefs = true;
   for (LateParsedDeclaration *D : Class.LateParsedDeclarations)
     D->ParseLexedMethodDefs();
 }

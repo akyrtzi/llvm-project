@@ -5,6 +5,9 @@ set -ex
 UTILS_DIR="$( cd "$( dirname "$0" )" && pwd )"
 BENCH_DIR=/tmp/bench-defer-parse
 
+# Output some info about the environment:
+xcrun clang --version
+
 rm -rf $BENCH_DIR /tmp/cas-test
 mkdir $BENCH_DIR
 pushd $BENCH_DIR
@@ -46,9 +49,17 @@ xcrun cmake -G Ninja ../llvm-project/llvm \
 xcrun ninja clang > /dev/null
 xcrun llbuild ninja load-manifest --json build.ninja > build.json
 
+echo === Measure debug - normal
 time "$UTILS_DIR/process-ninja.py" -manifest build.json -target bin/clang-14 -quiet -extra-compiler-args=-w
+echo === Measure debug - lazy body parsing
 time "$UTILS_DIR/process-ninja.py" -manifest build.json -target bin/clang-14 -quiet -extra-compiler-args="-w -Xclang -fdefer-body-parsing"
+echo === Measure debug - lazy body and codegen once
 time "$UTILS_DIR/process-ninja.py" -manifest build.json -target bin/clang-14 -quiet -extra-compiler-args="-w -Xclang -fdefer-body-parsing -Xclang -fcodegen-body-once"
+
+echo === Measure release - normal
+time "$UTILS_DIR/process-ninja.py" -manifest build.json -target bin/clang-14 -quiet -extra-compiler-args="-w -O3 -DNDEBUG -U_DEBUG -g0"
+echo === Measure release - lazy body parsing
+time "$UTILS_DIR/process-ninja.py" -manifest build.json -target bin/clang-14 -quiet -extra-compiler-args="-w -O3 -DNDEBUG -U_DEBUG -g0 -Xclang -fdefer-body-parsing"
 
 popd #build
 

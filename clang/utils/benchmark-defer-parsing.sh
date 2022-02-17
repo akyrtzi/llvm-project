@@ -20,6 +20,7 @@ pushd clang-to-build
 git clone -q git@github.com:akyrtzi/llvm-project.git
 pushd llvm-project
 git checkout -q deferred-parsing-to-bench
+git rev-parse HEAD
 popd #llvm-project
 mkdir -p build
 pushd build
@@ -33,6 +34,7 @@ popd #build
 
 pushd llvm-project
 git worktree add -q ../../clang-to-test/llvm-project sources/test-deferred-parsing
+git rev-parse sources/test-deferred-parsing
 popd #llvm-project
 
 popd #clang-to-build

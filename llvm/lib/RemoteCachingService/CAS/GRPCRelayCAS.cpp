@@ -147,7 +147,7 @@ private:
   }
 
   CASID getID(const InMemoryIndexValueT &I) const {
-    ArrayRef<uint8_t> Hash = I.Data->getHash().take_front(ServiceHashSize);
+    ArrayRef<uint8_t> Hash = makeArrayRef(I.Hash).take_front(ServiceHashSize);
     return CASID::create(&getContext(), toStringRef(Hash));
   }
 

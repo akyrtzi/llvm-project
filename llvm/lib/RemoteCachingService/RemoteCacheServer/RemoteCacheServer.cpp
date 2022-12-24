@@ -210,6 +210,7 @@ public:
     ServerBuilder Builder;
     // Listen on the given address without any authentication mechanism.
     Builder.AddListeningPort(Address, grpc::InsecureServerCredentials());
+    Builder.SetMaxReceiveMessageSize(-1);
     Builder.RegisterService(&KVService);
     Builder.RegisterService(&CASService);
     CQ = Builder.AddCompletionQueue();

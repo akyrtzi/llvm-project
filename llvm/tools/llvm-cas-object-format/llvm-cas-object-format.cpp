@@ -75,6 +75,10 @@ cl::opt<unsigned>
                cl::desc("Repeat ingest action and check that we got same ID"),
                cl::init(DefaultRepeats));
 
+cl::opt<bool> IsFileList("file-list",
+                         cl::desc("The argument is a file path for a list of "
+                                  "CASIDs, instead of a CASID"));
+
 cl::opt<std::string>
     IngestSchemaName("ingest-schema",
                      cl::desc("object file schema to ingest with"),
@@ -163,6 +167,8 @@ static Error printCASObjectOrTree(ObjectFormatSchemaPool &Pool, ObjectProxy ID,
 static Error printCASObject(ObjectFormatSchemaPool &Pool, ObjectProxy ID,
                             bool omitCASID);
 static Error materializeObjectsFromCASTree(ObjectStore &CAS, ObjectProxy ID);
+static Error materializeObjectsFromFileList(ObjectStore &CAS,
+                                            StringRef FilePath);
 
 int main(int argc, char *argv[]) {
   ExitOnError ExitOnErr;
@@ -221,6 +227,10 @@ int main(int argc, char *argv[]) {
     }
 
     case MaterializeObjects: {
+      if (IsFileList) {
+        ExitOnErr(materializeObjectsFromFileList(*CAS, IF));
+        return 0;
+      }
       auto ID = ExitOnErr(CAS->parseID(IF));
       auto Proxy = ExitOnErr(CAS->getProxy(ID));
       ExitOnErr(materializeObjectsFromCASTree(*CAS, Proxy));
@@ -888,6 +898,51 @@ static Error materializeObjectsFromCASTree(ObjectStore &CAS, ObjectProxy ID) {
         llvm::copy(ContentsStorage, Output->getBufferStart());
         return Output->commit();
       });
+}
+
+static Error materializeObjectsFromFileList(ObjectStore &CAS,
+                                            StringRef FilePath) {
+  auto MemBuf = MemoryBuffer::getFile(FilePath);
+  if (!MemBuf)
+    return errorCodeToError(MemBuf.getError());
+  SmallVector<StringRef> Paths;
+  (*MemBuf)->getBuffer().split(Paths, "\n");
+
+  auto Schema = std::make_unique<llvm::mccasformats::v1::MCSchema>(CAS);
+
+  auto materializeObject = [&Schema, &CAS](StringRef Path) {
+    ExitOnError ExitOnErr;
+    ExitOnErr.setBanner(("llvm-cas-object-format: " + Path + ": ").str());
+
+    auto CASIDBuf = MemoryBuffer::getFile(Path);
+    if (!CASIDBuf)
+      ExitOnErr(errorCodeToError(CASIDBuf.getError()));
+    CASID CASID = ExitOnErr(readCASIDBuffer(CAS, **CASIDBuf));
+    auto ObjRoot = ExitOnErr(CAS.getProxy(CASID));
+
+    SmallString<256> OutputPath(OutputPrefix);
+    StringRef ObjFileName = Path;
+    size_t Pos = ObjFileName.rfind(".o.");
+    if (Pos == StringRef::npos)
+      ExitOnErr(createStringError(inconvertibleErrorCode(),
+                                  "couldn't find '.o' extension"));
+    ObjFileName = ObjFileName.substr(0, Pos + 2);
+    std::error_code EC;
+    raw_fd_stream ObjOS(ObjFileName, EC);
+    if (EC)
+      ExitOnErr(errorCodeToError(EC));
+    ExitOnErr(Schema->serializeObjectFile(ObjRoot, ObjOS));
+  };
+
+  ThreadPool Pool;
+
+  for (StringRef Path : Paths) {
+    if (Path.empty())
+      continue;
+    Pool.async(materializeObject, Path);
+  }
+  Pool.wait();
+  return Error::success();
 }
 
 static void dumpGraph(jitlink::LinkGraph &G, SharedStream &OS, StringRef Desc) {

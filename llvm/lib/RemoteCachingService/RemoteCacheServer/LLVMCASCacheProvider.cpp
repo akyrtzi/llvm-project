@@ -227,7 +227,7 @@ LLVMCASCacheProvider::CASGet(StringRef CASID, bool WriteToDisk) {
   SmallVector<std::string> Refs;
   Refs.reserve(Obj->getNumReferences());
   auto Err = Obj->forEachReference([&](ObjectRef Ref) {
-    Refs.push_back(toStringRef(CAS->getID(Ref).getHash()).str());
+    Refs.push_back(CAS->getID(Ref).toString());
     return Error::success();
   });
   if (Err)

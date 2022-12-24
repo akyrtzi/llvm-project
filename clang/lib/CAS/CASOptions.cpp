@@ -11,6 +11,7 @@
 #include "clang/Basic/DiagnosticCAS.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
+#include "llvm/RemoteCachingService/RemoteCachingService.h"
 #include "llvm/Support/Error.h"
 
 using namespace clang;
@@ -31,7 +32,7 @@ createObjectStore(const CASConfiguration &Config, DiagnosticsEngine &Diags) {
 
   // FIXME: Pass on the actual error from the CAS.
   if (auto MaybeCAS =
-          llvm::expectedToOptional(llvm::cas::createOnDiskCAS(Path)))
+          llvm::expectedToOptional(llvm::cas::createCASFromIdentifier(Path)))
     return std::move(*MaybeCAS);
   Diags.Report(diag::err_builtin_cas_cannot_be_initialized) << Path;
   return nullptr;
@@ -87,6 +88,16 @@ createCache(ObjectStore &CAS, const CASConfiguration &Config,
   std::string Path = Config.CachePath;
   if (Path == "auto")
     Path = getDefaultOnDiskActionCachePath();
+
+  if (StringRef(Path).startswith("grpc://")) {
+    StringRef SockPath = Path;
+    SockPath.consume_front("grpc://");
+    if (auto MaybeCache = llvm::expectedToOptional(
+            llvm::cas::createGRPCActionCache(SockPath)))
+      return std::move(*MaybeCache);
+    Diags.Report(diag::err_builtin_actioncache_cannot_be_initialized) << Path;
+    return nullptr;
+  }
 
   // FIXME: Pass on the actual error from the CAS.
   if (auto MaybeCache =

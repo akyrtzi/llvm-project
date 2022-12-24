@@ -94,7 +94,8 @@ static void addCommonArgs(bool ForDriver, SmallVectorImpl<const char *> &Args,
   }
   if (const char *CASPath = ::getenv("LLVM_CACHE_CAS_PATH")) {
     llvm::SmallString<256> CASArg(CASPath);
-    llvm::sys::path::append(CASArg, "cas");
+    if (!CASArg.str().startswith("grpc://"))
+      llvm::sys::path::append(CASArg, "cas");
     if (ForDriver) {
       Args.append({"-Xclang", "-fcas-path", "-Xclang",
                    Saver.save(CASArg.str()).data()});
@@ -102,7 +103,8 @@ static void addCommonArgs(bool ForDriver, SmallVectorImpl<const char *> &Args,
       Args.append({"-fcas-path", Saver.save(CASArg.str()).data()});
     }
     llvm::SmallString<256> CacheArg(CASPath);
-    llvm::sys::path::append(CacheArg, "actioncache");
+    if (!CacheArg.str().startswith("grpc://"))
+      llvm::sys::path::append(CacheArg, "actioncache");
     if (ForDriver) {
       Args.append({"-Xclang", "-faction-cache-path", "-Xclang",
                    Saver.save(CacheArg.str()).data()});

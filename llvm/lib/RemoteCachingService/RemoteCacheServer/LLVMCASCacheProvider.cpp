@@ -165,10 +165,8 @@ Error LLVMCASCacheProvider::PutValue(StringRef RawKey, StringRef Value) {
 
 Expected<RemoteCacheProvider::LoadResponse>
 LLVMCASCacheProvider::CASLoad(StringRef CASID, bool WriteToDisk) {
-  Expected<cas::CASID> ID = CAS->parseID(CASID);
-  if (!ID)
-    return ID.takeError();
-  Expected<cas::ObjectProxy> Obj = CAS->getProxy(*ID);
+  cas::CASID ID = CASID::create(&CAS->getContext(), CASID);
+  Expected<cas::ObjectProxy> Obj = CAS->getProxy(ID);
   if (!Obj)
     return Obj.takeError();
   StringRef BlobData = Obj->getData();
@@ -211,15 +209,13 @@ Expected<std::string> LLVMCASCacheProvider::CASSave(const BlobContents &Blob) {
       return std::move(E);
   }
 
-  return CAS->getID(*Ref).toString();
+  return toStringRef(CAS->getID(*Ref).getHash()).str();
 }
 
 Expected<RemoteCacheProvider::GetResponse>
 LLVMCASCacheProvider::CASGet(StringRef CASID, bool WriteToDisk) {
-  Expected<cas::CASID> ID = CAS->parseID(CASID);
-  if (!ID)
-    return ID.takeError();
-  Expected<cas::ObjectProxy> Obj = CAS->getProxy(*ID);
+  cas::CASID ID = CASID::create(&CAS->getContext(), CASID);
+  Expected<cas::ObjectProxy> Obj = CAS->getProxy(ID);
   if (!Obj)
     return Obj.takeError();
   StringRef BlobData = Obj->getData();
@@ -227,7 +223,7 @@ LLVMCASCacheProvider::CASGet(StringRef CASID, bool WriteToDisk) {
   SmallVector<std::string> Refs;
   Refs.reserve(Obj->getNumReferences());
   auto Err = Obj->forEachReference([&](ObjectRef Ref) {
-    Refs.push_back(CAS->getID(Ref).toString());
+    Refs.push_back(toStringRef(CAS->getID(Ref).getHash()).str());
     return Error::success();
   });
   if (Err)
@@ -260,10 +256,8 @@ LLVMCASCacheProvider::CASPut(const BlobContents &Blob,
                              ArrayRef<std::string> RawRefs) {
   SmallVector<ObjectRef> Refs;
   for (const auto &Ref : RawRefs) {
-    auto ID = CAS->parseID(Ref);
-    if (!ID)
-      return ID.takeError();
-    auto CASRef = CAS->getReference(*ID);
+    CASID ID = CASID::create(&CAS->getContext(), Ref);
+    auto CASRef = CAS->getReference(ID);
     if (!CASRef)
       return createStringError(inconvertibleErrorCode(),
                                "cannot get ObjectRef from CASID ");
@@ -287,7 +281,7 @@ LLVMCASCacheProvider::CASPut(const BlobContents &Blob,
       return std::move(E);
   }
 
-  return CAS->getID(*Ref).toString();
+  return toStringRef(CAS->getID(*Ref).getHash()).str();
 }
 
 std::unique_ptr<RemoteCacheProvider>

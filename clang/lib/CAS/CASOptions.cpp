@@ -89,19 +89,9 @@ createCache(ObjectStore &CAS, const CASConfiguration &Config,
   if (Path == "auto")
     Path = getDefaultOnDiskActionCachePath();
 
-  if (StringRef(Path).startswith("grpc://")) {
-    StringRef SockPath = Path;
-    SockPath.consume_front("grpc://");
-    if (auto MaybeCache = llvm::expectedToOptional(
-            llvm::cas::createGRPCActionCache(SockPath)))
-      return std::move(*MaybeCache);
-    Diags.Report(diag::err_builtin_actioncache_cannot_be_initialized) << Path;
-    return nullptr;
-  }
-
   // FIXME: Pass on the actual error from the CAS.
-  if (auto MaybeCache =
-          llvm::expectedToOptional(llvm::cas::createOnDiskActionCache(Path)))
+  if (auto MaybeCache = llvm::expectedToOptional(
+          llvm::cas::createActionCacheFromIdentifier(Path)))
     return std::move(*MaybeCache);
   Diags.Report(diag::err_builtin_actioncache_cannot_be_initialized) << Path;
   return nullptr;

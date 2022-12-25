@@ -13,4 +13,5 @@ using namespace llvm;
 
 cas::RegisterGRPCCAS::RegisterGRPCCAS() {
   cas::registerCASURLScheme("grpc://", &cas::createGRPCRelayCAS);
+  cas::registerActionCacheURLScheme("grpc://", &createGRPCActionCache);
 }

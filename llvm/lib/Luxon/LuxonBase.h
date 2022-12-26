@@ -2,14 +2,22 @@
 #define LLVM_LUXON_LUXONBASE_H
 
 #include "llvm/CAS/CASID.h"
+#include "llvm/Support/Error.h"
 
 namespace llvm::cas {
+class ObjectRef;
+class ObjectStore;
 
-class LuxonCASBaseContext : public CASContext {
+class LuxonCASContext : public CASContext {
   void printIDImpl(raw_ostream &OS, const CASID &ID) const final;
-  void anchor() override;
 
 public:
+  Expected<CASID> parseID(StringRef Reference) const;
+
+  using HashType = std::array<uint8_t, 65>;
+  static HashType hashObject(const ObjectStore &CAS, ArrayRef<ObjectRef> Refs,
+                             ArrayRef<char> Data);
+
   static StringRef getHashName() { return "BLAKE2b"; }
   StringRef getHashSchemaIdentifier() const final {
     static const std::string ID =
@@ -17,9 +25,9 @@ public:
     return ID;
   }
 
-  static const LuxonCASBaseContext &getDefaultContext();
+  static const LuxonCASContext &getDefaultContext();
 
-  LuxonCASBaseContext() = default;
+  LuxonCASContext() = default;
 };
 
 } // namespace llvm::cas

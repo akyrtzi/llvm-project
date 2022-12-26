@@ -3,7 +3,6 @@
 #include "llvm/CAS/OnDiskHashMappedTrie.h"
 #include "llvm/Luxon/Luxon.h"
 #include "llvm/Support/Alignment.h"
-#include "llvm/Support/BLAKE3.h"
 #include "llvm/Support/Path.h"
 
 using namespace llvm;
@@ -11,8 +10,7 @@ using namespace llvm::cas;
 
 namespace {
 
-using HasherT = BLAKE3;
-using HashType = decltype(HasherT::hash(std::declval<ArrayRef<uint8_t> &>()));
+using HashType = LuxonCASContext::HashType;
 
 template <size_t Size> class CacheEntry {
 public:
@@ -33,7 +31,7 @@ public:
   static Expected<std::unique_ptr<LuxonActionCache>> create(StringRef Path);
 
 private:
-  static StringRef getHashName() { return "BLAKE3"; }
+  static StringRef getHashName() { return "BLAKE2b"; }
   static StringRef getActionCacheTableName() {
     static const std::string Name =
         ("llvm.actioncache[" + getHashName() + "->" + getHashName() + "]")
@@ -73,7 +71,7 @@ constexpr StringLiteral LuxonActionCache::ActionCacheFile;
 constexpr StringLiteral LuxonActionCache::FilePrefix;
 
 LuxonActionCache::LuxonActionCache(StringRef Path, OnDiskHashMappedTrie Cache)
-    : ActionCache(LuxonCASBaseContext::getDefaultContext()), Path(Path.str()),
+    : ActionCache(LuxonCASContext::getDefaultContext()), Path(Path.str()),
       Cache(std::move(Cache)) {}
 
 Expected<std::unique_ptr<LuxonActionCache>>

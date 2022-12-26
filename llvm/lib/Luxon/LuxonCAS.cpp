@@ -1,16 +1,18 @@
 #include "LuxonBase.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "llvm/CAS/BuiltinObjectHasher.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CAS/OnDiskHashMappedTrie.h"
 #include "llvm/Luxon/Luxon.h"
 #include "llvm/Support/Alignment.h"
-#include "llvm/Support/BLAKE3.h"
+#include "llvm/Support/Base64.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
+
+#include "BLAKE2/blake2.h"
 
 #define DEBUG_TYPE "luxon-cas"
 
@@ -21,33 +23,67 @@
 using namespace llvm;
 using namespace llvm::cas;
 
-void LuxonCASBaseContext::anchor() {}
-
-static StringRef getCASIDPrefix() { return "luxon://"; }
-
-void LuxonCASBaseContext::printIDImpl(raw_ostream &OS, const CASID &ID) const {
-  SmallString<64> Hash;
-  toHex(ID.getHash(), /*LowerCase=*/true, Hash);
-  OS << getCASIDPrefix() << Hash;
+void LuxonCASContext::printIDImpl(raw_ostream &OS, const CASID &ID) const {
+  OS << "0~" << encodeBase64(ID.getHash().drop_front());
 }
 
-const LuxonCASBaseContext &LuxonCASBaseContext::getDefaultContext() {
-  static LuxonCASBaseContext DefaultContext;
+Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
+  // Test for the kind in the first position.
+  if (LLVM_UNLIKELY(!Reference.consume_front("0")))
+    return createStringError(errc::invalid_argument,
+                             "invalid kind for cas-id hash '" + Reference +
+                                 "'");
+  // Test for "~" in the second position.
+  if (LLVM_UNLIKELY(!Reference.consume_front("~")))
+    return createStringError(errc::invalid_argument,
+                             "missing '~' for cas-id hash '" + Reference + "'");
+
+  std::vector<char> Binary;
+  if (Error E = decodeBase64(Reference, Binary))
+    return E;
+
+  Binary.insert(Binary.begin(), 0);
+  if (Binary.size() != sizeof(HashType))
+    return createStringError(errc::invalid_argument,
+                             "wrong size for cas-id hash '" + Reference + "'");
+
+  return CASID::create(this, toStringRef(Binary));
+}
+
+LuxonCASContext::HashType LuxonCASContext::hashObject(const ObjectStore &CAS,
+                                                      ArrayRef<ObjectRef> Refs,
+                                                      ArrayRef<char> Data) {
+  blake2b_state State;
+  blake2b_init(&State, 64);
+  for (const ObjectRef &Ref : Refs) {
+    CASID ID = CAS.getID(Ref);
+    ArrayRef<uint8_t> Hash = ID.getHash();
+    assert(Hash.size() == sizeof(HashType) &&
+           "Expected object ref to match the hash size");
+    blake2b_update(&State, Hash.data(), Hash.size());
+  }
+  blake2b_update(&State, Data.data(), Data.size());
+
+  LuxonCASContext::HashType Hash;
+  Hash[0] = 0;
+  blake2b_final(&State, Hash.data() + 1, Hash.size() - 1);
+  return Hash;
+}
+
+const LuxonCASContext &LuxonCASContext::getDefaultContext() {
+  static LuxonCASContext DefaultContext;
   return DefaultContext;
 }
 
 namespace {
 
-using HasherT = BLAKE3;
-using HashType = decltype(HasherT::hash(std::declval<ArrayRef<uint8_t> &>()));
+using HashType = LuxonCASContext::HashType;
 
 class LuxonCASBase : public ObjectStore {
 public:
-  LuxonCASBase() : ObjectStore(LuxonCASBaseContext::getDefaultContext()) {}
+  LuxonCASBase() : ObjectStore(LuxonCASContext::getDefaultContext()) {}
 
   Expected<CASID> parseID(StringRef Reference) final;
-
-  virtual Expected<CASID> parseIDImpl(ArrayRef<uint8_t> Hash) = 0;
 
   Expected<ObjectRef> store(ArrayRef<ObjectRef> Refs,
                             ArrayRef<char> Data) final;
@@ -98,21 +134,7 @@ public:
 };
 
 Expected<CASID> LuxonCASBase::parseID(StringRef Reference) {
-  if (!Reference.consume_front(getCASIDPrefix()))
-    return createStringError(std::make_error_code(std::errc::invalid_argument),
-                             "invalid cas-id '" + Reference + "'");
-
-  // FIXME: Allow shortened references?
-  if (Reference.size() != 2 * sizeof(HashType))
-    return createStringError(std::make_error_code(std::errc::invalid_argument),
-                             "wrong size for cas-id hash '" + Reference + "'");
-
-  std::string Binary;
-  if (!tryGetFromHex(Reference, Binary))
-    return createStringError(std::make_error_code(std::errc::invalid_argument),
-                             "invalid hash in cas-id '" + Reference + "'");
-
-  return parseIDImpl(arrayRefFromStringRef(Binary));
+  return static_cast<const LuxonCASContext &>(getContext()).parseID(Reference);
 }
 
 static size_t getPageSize() {
@@ -160,7 +182,7 @@ LuxonCASBase::storeFromOpenFileImpl(sys::fs::file_t FD,
   // so we need to check for an actual null character at the end.
   ArrayRef<char> Data(Map.data(), Map.size());
   HashType ComputedHash =
-      BuiltinObjectHasher<HasherT>::hashObject(*this, std::nullopt, Data);
+      LuxonCASContext::hashObject(*this, std::nullopt, Data);
   if (!isAligned(Align(PageSize), Data.size()) && Data.end()[0] == 0)
     return storeFromNullTerminatedRegion(ComputedHash, std::move(Map));
   return storeImpl(ComputedHash, std::nullopt, Data);
@@ -168,8 +190,7 @@ LuxonCASBase::storeFromOpenFileImpl(sys::fs::file_t FD,
 
 Expected<ObjectRef> LuxonCASBase::store(ArrayRef<ObjectRef> Refs,
                                         ArrayRef<char> Data) {
-  return storeImpl(BuiltinObjectHasher<HasherT>::hashObject(*this, Refs, Data),
-                   Refs, Data);
+  return storeImpl(LuxonCASContext::hashObject(*this, Refs, Data), Refs, Data);
 }
 
 Error LuxonCASBase::validate(const CASID &ID) {
@@ -190,7 +211,7 @@ Error LuxonCASBase::validate(const CASID &ID) {
     return E;
 
   ArrayRef<char> Data(Proxy.getData().data(), Proxy.getData().size());
-  auto Hash = BuiltinObjectHasher<HasherT>::hashObject(*this, Refs, Data);
+  auto Hash = LuxonCASContext::hashObject(*this, Refs, Data);
   if (!ID.getHash().equals(Hash))
     return createCorruptObjectError(ID);
 
@@ -900,12 +921,12 @@ class LuxonCAS : public LuxonCASBase {
 public:
   static StringRef getIndexTableName() {
     static const std::string Name =
-        ("llvm.cas.index[" + LuxonCASBaseContext::getHashName() + "]").str();
+        ("llvm.cas.index[" + LuxonCASContext::getHashName() + "]").str();
     return Name;
   }
   static StringRef getDataPoolTableName() {
     static const std::string Name =
-        ("llvm.cas.data[" + LuxonCASBaseContext::getHashName() + "]").str();
+        ("llvm.cas.data[" + LuxonCASContext::getHashName() + "]").str();
     return Name;
   }
 
@@ -921,9 +942,6 @@ public:
   class MappedTempFile;
 
   IndexProxy indexHash(ArrayRef<uint8_t> Hash);
-  Expected<CASID> parseIDImpl(ArrayRef<uint8_t> Hash) final {
-    return getID(indexHash(Hash));
-  }
 
   Expected<ObjectRef> storeImpl(ArrayRef<uint8_t> ComputedHash,
                                 ArrayRef<ObjectRef> Refs,

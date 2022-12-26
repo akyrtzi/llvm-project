@@ -19,6 +19,7 @@
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/ExecutionEngine/JITLink/MachO.h"
 #include "llvm/ExecutionEngine/JITLink/MachO_x86_64.h"
+#include "llvm/Luxon/Luxon.h"
 #include "llvm/MC/CAS/MCCASObjectV1.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
 #include "llvm/Support/CommandLine.h"
@@ -175,6 +176,7 @@ int main(int argc, char *argv[]) {
   ExitOnErr.setBanner(std::string(argv[0]) + ": ");
 
   RegisterGRPCCAS Y;
+  registerLuxonCAS();
   cl::ParseCommandLineOptions(argc, argv);
 
   if (!CASIDOutput.empty() && InputFiles.size() != 1) {

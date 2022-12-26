@@ -8,6 +8,7 @@ set( LLVM_LINK_COMPONENTS
   AggressiveInstCombine
   InstCombine
   Instrumentation
+  Luxon
   MC
   MCParser
   ObjCARCOpts

@@ -3,6 +3,7 @@ set(LLVM_LINK_COMPONENTS
   JITLink
   CAS
   CASObjectFormats
+  Luxon
   RemoteCachingService
   )
 

@@ -13,6 +13,7 @@
 #include "llvm/CAS/HierarchicalTreeBuilder.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CAS/TreeSchema.h"
+#include "llvm/Luxon/Luxon.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
@@ -55,6 +56,7 @@ static int validateObject(ObjectStore &CAS, const CASID &ID);
 int main(int Argc, char **Argv) {
   InitLLVM X(Argc, Argv);
   RegisterGRPCCAS Y;
+  registerLuxonCAS();
 
   cl::list<std::string> Objects(cl::Positional, cl::desc("<object>..."));
   cl::opt<std::string> CASPath("cas", cl::desc("Path to CAS on disk."),

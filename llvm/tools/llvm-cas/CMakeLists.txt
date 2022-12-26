@@ -1,6 +1,7 @@
 set(LLVM_LINK_COMPONENTS
   Support
   CAS
+  Luxon
   RemoteCachingService
   )
 

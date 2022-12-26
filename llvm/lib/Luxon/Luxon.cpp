@@ -1,6 +1,8 @@
 #include "llvm/Luxon/Luxon.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
+#include "llvm/Luxon/LuxonActionCache.h"
+#include "llvm/Luxon/LuxonCAS.h"
 #include "llvm/Support/Errc.h"
 
 using namespace llvm;

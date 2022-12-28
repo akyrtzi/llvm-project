@@ -50,26 +50,6 @@ Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
   return CASID::create(this, toStringRef(Binary));
 }
 
-LuxonCASContext::HashType LuxonCASContext::hashObject(const ObjectStore &CAS,
-                                                      ArrayRef<ObjectRef> Refs,
-                                                      ArrayRef<char> Data) {
-  blake2b_state State;
-  blake2b_init(&State, 64);
-  for (const ObjectRef &Ref : Refs) {
-    CASID ID = CAS.getID(Ref);
-    ArrayRef<uint8_t> Hash = ID.getHash();
-    assert(Hash.size() == sizeof(HashType) &&
-           "Expected object ref to match the hash size");
-    blake2b_update(&State, Hash.data(), Hash.size());
-  }
-  blake2b_update(&State, Data.data(), Data.size());
-
-  LuxonCASContext::HashType Hash;
-  Hash[0] = 0;
-  blake2b_final(&State, Hash.data() + 1, Hash.size() - 1);
-  return Hash;
-}
-
 const LuxonCASContext &LuxonCASContext::getDefaultContext() {
   static LuxonCASContext DefaultContext;
   return DefaultContext;
@@ -2042,6 +2022,38 @@ Expected<std::unique_ptr<ObjectStore>> cas::createLuxonCAS(const Twine &Path) {
   return LuxonCAS::open(AbsPath);
 }
 
+LuxonCASContext::HashType LuxonCASContext::hashObject(const ObjectStore &CAS,
+                                                      ArrayRef<ObjectRef> Refs,
+                                                      ArrayRef<char> Data) {
+  SmallVector<ArrayRef<uint8_t>, 64> Hashes;
+  for (const ObjectRef &Ref : Refs) {
+    ArrayRef<uint8_t> Hash = static_cast<const LuxonCAS &>(CAS).getHash(Ref);
+    assert(Hash.size() == sizeof(HashType) &&
+           "Expected object ref to match the hash size");
+    Hashes.push_back(Hash);
+  }
+  return hashObjectWithHashes(CAS, Hashes, Data);
+}
+
+LuxonCASContext::HashType
+LuxonCASContext::hashObjectWithHashes(const ObjectStore &CAS,
+                                      ArrayRef<ArrayRef<uint8_t>> Hashes,
+                                      ArrayRef<char> Data) {
+  blake2b_state State;
+  blake2b_init(&State, 64);
+  for (ArrayRef<uint8_t> Hash : Hashes) {
+    assert(Hash.size() == sizeof(HashType) &&
+           "Expected object ref to match the hash size");
+    blake2b_update(&State, Hash.data(), Hash.size());
+  }
+  blake2b_update(&State, Data.data(), Data.size());
+
+  LuxonCASContext::HashType Hash;
+  Hash[0] = 0;
+  blake2b_final(&State, Hash.data() + 1, Hash.size() - 1);
+  return Hash;
+}
+
 uint64_t cas::luxon_ObjectStore_getInternalRef(ObjectStore &CAS,
                                                ObjectRef Ref) {
   LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
@@ -2073,10 +2085,9 @@ cas::luxon_ObjectStore_createRefFromHash(ObjectStore &CAS,
   return LuxCAS.createRefFromHash(Hash);
 }
 
-std::array<uint8_t, 65> luxon_ObjectStore_hashDigest(ObjectStore &CAS,
-                                                     ArrayRef<ObjectRef> Refs,
-                                                     ArrayRef<char> Data) {
-  return LuxonCASContext::hashObject(CAS, Refs, Data);
+std::array<uint8_t, 65> cas::luxon_ObjectStore_objectDigest(
+    ObjectStore &CAS, ArrayRef<ArrayRef<uint8_t>> Hashes, ArrayRef<char> Data) {
+  return LuxonCASContext::hashObjectWithHashes(CAS, Hashes, Data);
 }
 
 ObjectRef cas::luxon_ObjectStore_refDigest(ObjectStore &CAS,

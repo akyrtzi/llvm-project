@@ -17,6 +17,9 @@ public:
   using HashType = std::array<uint8_t, 65>;
   static HashType hashObject(const ObjectStore &CAS, ArrayRef<ObjectRef> Refs,
                              ArrayRef<char> Data);
+  static HashType hashObjectWithHashes(const ObjectStore &CAS,
+                                       ArrayRef<ArrayRef<uint8_t>> Hashes,
+                                       ArrayRef<char> Data);
 
   static StringRef getHashName() { return "BLAKE2b"; }
   StringRef getHashSchemaIdentifier() const final {

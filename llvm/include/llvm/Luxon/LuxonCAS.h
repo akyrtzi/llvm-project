@@ -18,9 +18,8 @@ ArrayRef<uint8_t> luxon_ObjectStore_getHash(ObjectStore &CAS, ObjectRef Ref);
 Expected<ObjectRef> luxon_ObjectStore_createRefFromHash(ObjectStore &CAS,
                                                         ArrayRef<uint8_t> Hash);
 
-std::array<uint8_t, 65> luxon_ObjectStore_hashDigest(ObjectStore &CAS,
-                                                     ArrayRef<ObjectRef> Refs,
-                                                     ArrayRef<char> Data);
+std::array<uint8_t, 65> luxon_ObjectStore_objectDigest(
+    ObjectStore &CAS, ArrayRef<ArrayRef<uint8_t>> Hashes, ArrayRef<char> Data);
 ObjectRef luxon_ObjectStore_refDigest(ObjectStore &CAS,
                                       ArrayRef<ObjectRef> Refs,
                                       ArrayRef<char> Data);

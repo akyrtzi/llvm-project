@@ -23,8 +23,22 @@
 using namespace llvm;
 using namespace llvm::cas;
 
+static std::string sanitizedEncodeBase64(ArrayRef<uint8_t> Bytes) {
+  std::string B64 = encodeBase64(Bytes);
+  std::replace(B64.begin(), B64.end(), '+', '-');
+  std::replace(B64.begin(), B64.end(), '/', '_');
+  return B64;
+}
+
+static Error sanitizedDecodeBase64(StringRef Input, std::vector<char> &Output) {
+  SmallString<90> B64(Input);
+  std::replace(B64.begin(), B64.end(), '-', '+');
+  std::replace(B64.begin(), B64.end(), '_', '/');
+  return decodeBase64(Input, Output);
+}
+
 void LuxonCASContext::printIDImpl(raw_ostream &OS, const CASID &ID) const {
-  OS << "0~" << encodeBase64(ID.getHash().drop_front());
+  OS << "0~" << sanitizedEncodeBase64(ID.getHash().drop_front());
 }
 
 Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
@@ -39,7 +53,7 @@ Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
                              "missing '~' for cas-id hash '" + Reference + "'");
 
   std::vector<char> Binary;
-  if (Error E = decodeBase64(Reference, Binary))
+  if (Error E = sanitizedDecodeBase64(Reference, Binary))
     return E;
 
   Binary.insert(Binary.begin(), 0);

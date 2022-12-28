@@ -303,36 +303,17 @@ private:
 class InternalRef4B;
 
 /// 8B reference:
-/// - bits  0-47: Offset
-/// - bits 48-63: Reserved for other metadata.
 class InternalRef {
-  enum Counts : size_t {
-    NumMetadataBits = 16,
-    NumOffsetBits = 64 - NumMetadataBits,
-  };
-
 public:
-  enum class OffsetKind {
-    IndexRecord = 0,
-    DataRecord = 1,
-    String2B = 2,
-  };
-
-  OffsetKind getOffsetKind() const {
-    return (OffsetKind)((Data >> NumOffsetBits) & UINT8_MAX);
-  }
-
   FileOffset getFileOffset() const { return FileOffset(getRawOffset()); }
 
   uint64_t getRawData() const { return Data; }
-  uint64_t getRawOffset() const { return Data & (UINT64_MAX >> 16); }
+  uint64_t getRawOffset() const { return Data; }
 
   static InternalRef getFromRawData(uint64_t Data) { return InternalRef(Data); }
 
-  static InternalRef getFromOffset(OffsetKind Kind, FileOffset Offset) {
-    assert((uint64_t)Offset.get() <= (UINT64_MAX >> NumMetadataBits) &&
-           "Offset must fit in 6B");
-    return InternalRef((uint64_t)Kind << NumOffsetBits | Offset.get());
+  static InternalRef getFromOffset(FileOffset Offset) {
+    return InternalRef(Offset.get());
   }
 
   friend bool operator==(InternalRef LHS, InternalRef RHS) {
@@ -340,54 +321,30 @@ public:
   }
 
 private:
-  InternalRef(OffsetKind Kind, FileOffset Offset)
-      : Data((uint64_t)Kind << NumOffsetBits | Offset.get()) {
-    assert(Offset.get() == getFileOffset().get());
-    assert(Kind == getOffsetKind());
-  }
+  InternalRef(FileOffset Offset) : Data((uint64_t)Offset.get()) {}
   InternalRef(uint64_t Data) : Data(Data) {}
   uint64_t Data;
 };
 
 /// 4B reference:
-/// - bits  0-29: Offset
-/// - bits 30-31: Reserved for other metadata.
 class InternalRef4B {
-  enum Counts : size_t {
-    NumMetadataBits = 4,
-    NumOffsetBits = 32 - NumMetadataBits,
-  };
-
 public:
-  using OffsetKind = InternalRef::OffsetKind;
-
-  OffsetKind getOffsetKind() const {
-    return (OffsetKind)(Data >> NumOffsetBits);
-  }
-
   FileOffset getFileOffset() const {
-    uint64_t RawOffset = Data & (UINT32_MAX >> NumMetadataBits);
-    return FileOffset(RawOffset << 3);
+    uint64_t RawOffset = Data;
+    return FileOffset(RawOffset);
   }
 
   /// Shrink to 4B reference.
   static Optional<InternalRef4B> tryToShrink(InternalRef Ref) {
-    OffsetKind Kind = Ref.getOffsetKind();
-    uint64_t ShiftedKind = (uint64_t)Kind << NumOffsetBits;
-    if (ShiftedKind > UINT32_MAX)
+    uint64_t Offset = Ref.getRawOffset();
+    if (Offset > UINT32_MAX)
       return std::nullopt;
 
-    uint64_t ShiftedOffset = Ref.getRawOffset();
-    assert(isAligned(Align(8), ShiftedOffset));
-    ShiftedOffset >>= 3;
-    if (ShiftedOffset > (UINT32_MAX >> NumMetadataBits))
-      return std::nullopt;
-
-    return InternalRef4B(ShiftedKind | ShiftedOffset);
+    return InternalRef4B(Offset);
   }
 
   operator InternalRef() const {
-    return InternalRef::getFromOffset(getOffsetKind(), getFileOffset());
+    return InternalRef::getFromOffset(getFileOffset());
   }
 
 private:
@@ -791,7 +748,6 @@ public:
   StandaloneDataInMemory(std::unique_ptr<MemoryBuffer> Region, InternalRef Ref,
                          TrieRecord::StorageKind SK)
       : Region(std::move(Region)), Ref(Ref), SK(SK) {
-    assert(Ref.getOffsetKind() == InternalRef::OffsetKind::IndexRecord);
 #ifndef NDEBUG
     bool IsStandalone = false;
     switch (SK) {
@@ -809,11 +765,11 @@ public:
 };
 
 struct InternalHandle {
-  InternalRef getRef() const { return DirectRef ? *DirectRef : SDIM->Ref; }
+  FileOffset getFileOffset() const { return *DataOffset; }
 
   uint64_t getRawData() const {
-    if (DirectRef) {
-      uint64_t Raw = DirectRef->getRawData();
+    if (DataOffset) {
+      uint64_t Raw = DataOffset->get();
       assert(!(Raw & 0x1));
       return Raw;
     }
@@ -822,13 +778,10 @@ struct InternalHandle {
     return Raw | 1;
   }
 
-  explicit InternalHandle(InternalRef DirectRef) : DirectRef(DirectRef) {
-    assert(DirectRef.getOffsetKind() != InternalRef::OffsetKind::IndexRecord);
-  }
-  explicit InternalHandle(const StandaloneDataInMemory &SDIM) : SDIM(&SDIM) {
-    assert(SDIM.Ref.getOffsetKind() == InternalRef::OffsetKind::IndexRecord);
-  }
-  Optional<InternalRef> DirectRef;
+  explicit InternalHandle(FileOffset DataOffset) : DataOffset(DataOffset) {}
+  explicit InternalHandle(uint64_t DataOffset) : DataOffset(DataOffset) {}
+  explicit InternalHandle(const StandaloneDataInMemory &SDIM) : SDIM(&SDIM) {}
+  Optional<FileOffset> DataOffset;
   const StandaloneDataInMemory *SDIM = nullptr;
 };
 
@@ -946,6 +899,11 @@ public:
   Expected<ObjectRef> storeImpl(ArrayRef<uint8_t> ComputedHash,
                                 ArrayRef<ObjectRef> Refs,
                                 ArrayRef<char> Data) final;
+  Expected<ObjectRef> storeImpl(IndexProxy &I, ArrayRef<ObjectRef> Refs,
+                                ArrayRef<char> Data);
+
+  Error storeForRef(ObjectRef Ref, ArrayRef<ObjectRef> Refs,
+                    ArrayRef<char> Data);
 
   Expected<ObjectRef> createStandaloneLeaf(IndexProxy &I, ArrayRef<char> Data);
 
@@ -976,11 +934,13 @@ public:
     if (Data & 1)
       return InternalHandle(*reinterpret_cast<const StandaloneDataInMemory *>(
           Data & (-1ULL << 1)));
-    return InternalHandle(InternalRef::getFromRawData(Data));
+    return InternalHandle(Data);
   }
   ObjectRef getExternalReference(InternalRef Ref) const {
     return ObjectRef::getFromInternalRef(*this, Ref.getRawData());
   }
+
+  InternalRef getInternalRef(InternalHandle Handle) const;
 
   Expected<ObjectHandle> load(ObjectRef Ref) final;
   Expected<ObjectHandle> load(const IndexProxy &I, TrieRecord::Data Object,
@@ -988,6 +948,9 @@ public:
 
   ObjectHandle getLoadedObject(const IndexProxy &I, TrieRecord::Data Object,
                                InternalHandle Handle) const;
+
+  Expected<Optional<ObjectProxy>> loadProxy(ObjectRef Ref);
+  bool containsRef(ObjectRef Ref);
 
   struct PooledDataRecord {
     FileOffset Offset;
@@ -1000,18 +963,27 @@ public:
   CASID getID(InternalRef Ref) const;
   CASID getID(ObjectRef Ref) const final { return getID(getInternalRef(Ref)); }
   CASID getID(ObjectHandle Handle) const final {
-    return getID(getInternalHandle(Handle).getRef());
+    return getID(getInternalRef(getInternalHandle(Handle)));
   }
-  Optional<FileOffset> getIndexOffset(InternalRef Ref) const;
+  FileOffset getIndexOffset(InternalRef Ref) const;
 
   CASID getID(const IndexProxy &I) const {
     StringRef Hash = toStringRef(I.Hash);
     return CASID::create(&getContext(), Hash);
   }
 
+  ArrayRef<uint8_t> getHash(InternalRef Ref) const;
+  ArrayRef<uint8_t> getHash(ObjectRef Ref) const {
+    return getHash(getInternalRef(Ref));
+  }
+
+  ArrayRef<uint8_t> getHash(const IndexProxy &I) const { return I.Hash; }
+
+  ObjectRef createRefFromHash(ArrayRef<uint8_t> Hash);
+
   Optional<ObjectRef> getReference(const CASID &ID) const final;
   ObjectRef getReference(ObjectHandle Handle) const final {
-    return getExternalReference(getInternalHandle(Handle).getRef());
+    return getExternalReference(getInternalRef(getInternalHandle(Handle)));
   }
 
   OnDiskHashMappedTrie::const_pointer
@@ -1020,8 +992,7 @@ public:
 
   OnDiskHashMappedTrie::const_pointer
   getInternalIndexPointer(const CASID &ID) const;
-  Optional<InternalRef> makeInternalRef(FileOffset IndexOffset,
-                                        TrieRecord::Data Object) const;
+  InternalRef makeInternalRef(FileOffset IndexOffset) const;
 
   IndexProxy
   getIndexProxyFromPointer(OnDiskHashMappedTrie::const_pointer P) const;
@@ -1595,9 +1566,8 @@ Optional<ObjectRef> LuxonCAS::getReference(const CASID &ID) const {
   if (!P)
     return std::nullopt;
   IndexProxy I = getIndexProxyFromPointer(P);
-  if (Optional<InternalRef> Ref = makeInternalRef(I.Offset, I.Ref.load()))
-    return getExternalReference(*Ref);
-  return std::nullopt;
+  InternalRef Ref = makeInternalRef(I.Offset);
+  return getExternalReference(Ref);
 }
 
 OnDiskHashMappedTrie::const_pointer
@@ -1610,9 +1580,8 @@ LuxonCAS::getInternalIndexPointer(const CASID &ID) const {
 
 OnDiskHashMappedTrie::const_pointer
 LuxonCAS::getInternalIndexPointer(InternalRef Ref) const {
-  if (Optional<FileOffset> Offset = getIndexOffset(Ref))
-    return Index.recoverFromFileOffset(*Offset);
-  return {};
+  FileOffset Offset = getIndexOffset(Ref);
+  return Index.recoverFromFileOffset(Offset);
 }
 
 Optional<IndexProxy> LuxonCAS::getIndexProxyFromRef(InternalRef Ref) const {
@@ -1621,18 +1590,8 @@ Optional<IndexProxy> LuxonCAS::getIndexProxyFromRef(InternalRef Ref) const {
   return std::nullopt;
 }
 
-Optional<FileOffset> LuxonCAS::getIndexOffset(InternalRef Ref) const {
-  switch (Ref.getOffsetKind()) {
-  case InternalRef::OffsetKind::String2B:
-    return std::nullopt;
-
-  case InternalRef::OffsetKind::IndexRecord:
-    return Ref.getFileOffset();
-
-  case InternalRef::OffsetKind::DataRecord:
-    return DataRecordHandle::get(DataPool.beginData(Ref.getFileOffset()))
-        .getTrieRecordOffset();
-  }
+FileOffset LuxonCAS::getIndexOffset(InternalRef Ref) const {
+  return Ref.getFileOffset();
 }
 
 CASID LuxonCAS::getID(InternalRef Ref) const {
@@ -1642,6 +1601,14 @@ CASID LuxonCAS::getID(InternalRef Ref) const {
         "LuxonCAS: corrupt internal reference to unknown object");
   StringRef Hash = toStringRef(I->Hash);
   return CASID::create(&getContext(), Hash);
+}
+
+ArrayRef<uint8_t> LuxonCAS::getHash(InternalRef Ref) const {
+  Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
+  if (!I)
+    report_fatal_error(
+        "LuxonCAS: corrupt internal reference to unknown object");
+  return getHash(*I);
 }
 
 ArrayRef<char> LuxonCAS::getDataConst(ObjectHandle Node) const {
@@ -1680,22 +1647,34 @@ LuxonCAS::load(const IndexProxy &I, TrieRecord::Data Object, InternalRef Ref) {
   return getLoadedObject(I, Object, *Handle);
 }
 
-Optional<InternalRef> LuxonCAS::makeInternalRef(FileOffset IndexOffset,
-                                                TrieRecord::Data Object) const {
-  switch (Object.SK) {
-  case TrieRecord::StorageKind::Unknown:
+Expected<Optional<ObjectProxy>> LuxonCAS::loadProxy(ObjectRef ExternalRef) {
+  InternalRef Ref = getInternalRef(ExternalRef);
+  Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
+  if (!I)
+    report_fatal_error(
+        "LuxonCAS: corrupt internal reference to unknown object");
+  TrieRecord::Data Obj = I->Ref.load();
+  if (Obj.OK == TrieRecord::ObjectKind::Invalid)
     return std::nullopt;
 
-  case TrieRecord::StorageKind::DataPool:
-    return InternalRef::getFromOffset(InternalRef::OffsetKind::DataRecord,
-                                      Object.Offset);
+  Expected<ObjectHandle> Handle = load(*I, Obj, Ref);
+  if (!Handle)
+    return Handle.takeError();
+  return ObjectProxy::load(*this, *Handle);
+}
 
-  case TrieRecord::StorageKind::Standalone:
-  case TrieRecord::StorageKind::StandaloneLeaf:
-  case TrieRecord::StorageKind::StandaloneLeaf0:
-    return InternalRef::getFromOffset(InternalRef::OffsetKind::IndexRecord,
-                                      IndexOffset);
-  }
+bool LuxonCAS::containsRef(ObjectRef ExternalRef) {
+  InternalRef Ref = getInternalRef(ExternalRef);
+  Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
+  if (!I)
+    report_fatal_error(
+        "LuxonCAS: corrupt internal reference to unknown object");
+  TrieRecord::Data Obj = I->Ref.load();
+  return Obj.OK != TrieRecord::ObjectKind::Invalid;
+}
+
+InternalRef LuxonCAS::makeInternalRef(FileOffset IndexOffset) const {
+  return InternalRef::getFromOffset(IndexOffset);
 }
 
 void LuxonCAS::getStandalonePath(TrieRecord::StorageKind SK,
@@ -1724,11 +1703,8 @@ void LuxonCAS::getStandalonePath(TrieRecord::StorageKind SK,
 Expected<InternalHandle> LuxonCAS::loadContentForRef(const IndexProxy &I,
                                                      TrieRecord::Data Object,
                                                      InternalRef Ref) {
-  if (Ref.getOffsetKind() != InternalRef::OffsetKind::IndexRecord)
-    return InternalHandle(Ref);
-
-  assert(Ref.getOffsetKind() == InternalRef::OffsetKind::IndexRecord &&
-         "Expected isContentLoaded() to check for 'IndexRecord'");
+  if (Object.SK == TrieRecord::StorageKind::DataPool)
+    return InternalHandle(Object.Offset);
 
   // Only TrieRecord::StorageKind::Standalone (and variants) need to be
   // explicitly loaded.
@@ -1766,26 +1742,18 @@ OnDiskContent LuxonCAS::getContentFromHandle(InternalHandle Handle) const {
   if (Handle.SDIM)
     return Handle.SDIM->getContent();
 
-  InternalRef DirectRef = *Handle.DirectRef;
-  switch (DirectRef.getOffsetKind()) {
-  case InternalRef::OffsetKind::String2B: {
-    auto Handle =
-        String2BHandle::get(DataPool.beginData(DirectRef.getFileOffset()));
-    assert(Handle.getString().end()[0] == 0 && "Null termination");
-    return OnDiskContent{std::nullopt,
-                         arrayRefFromStringRef<char>(Handle.getString())};
-  }
+  auto DataHandle =
+      DataRecordHandle::get(DataPool.beginData(Handle.getFileOffset()));
+  assert(DataHandle.getData().end()[0] == 0 && "Null termination");
+  return OnDiskContent{DataHandle, std::nullopt};
+}
 
-  case InternalRef::OffsetKind::DataRecord: {
-    auto Handle =
-        DataRecordHandle::get(DataPool.beginData(DirectRef.getFileOffset()));
-    assert(Handle.getData().end()[0] == 0 && "Null termination");
-    return OnDiskContent{Handle, std::nullopt};
-  }
+InternalRef LuxonCAS::getInternalRef(InternalHandle Handle) const {
+  if (auto *SDIM = Handle.SDIM)
+    return SDIM->Ref;
 
-  case InternalRef::OffsetKind::IndexRecord:
-    report_fatal_error("Invalid standalone internal handle without SDIM");
-  }
+  OnDiskContent Content = getContentFromHandle(Handle);
+  return makeInternalRef(Content.Record->getTrieRecordOffset());
 }
 
 OnDiskContent StandaloneDataInMemory::getContent() const {
@@ -1868,7 +1836,7 @@ Expected<ObjectRef> LuxonCAS::createStandaloneLeaf(IndexProxy &I,
   {
     TrieRecord::Data Leaf{SK, TrieRecord::ObjectKind::Object, FileOffset()};
     if (I.Ref.compare_exchange_strong(Existing, Leaf))
-      return getExternalReference(*makeInternalRef(I.Offset, Leaf));
+      return getExternalReference(makeInternalRef(I.Offset));
   }
 
   // If there was a race, confirm that the new value has valid storage.
@@ -1877,19 +1845,23 @@ Expected<ObjectRef> LuxonCAS::createStandaloneLeaf(IndexProxy &I,
     return createCorruptObjectError(getID(I));
 
   // Get and return the inserted leaf node.
-  return getExternalReference(*makeInternalRef(I.Offset, Existing));
+  return getExternalReference(makeInternalRef(I.Offset));
 }
 
 Expected<ObjectRef> LuxonCAS::storeImpl(ArrayRef<uint8_t> ComputedHash,
                                         ArrayRef<ObjectRef> Refs,
                                         ArrayRef<char> Data) {
   IndexProxy I = indexHash(ComputedHash);
+  return storeImpl(I, Refs, Data);
+}
 
+Expected<ObjectRef> LuxonCAS::storeImpl(IndexProxy &I, ArrayRef<ObjectRef> Refs,
+                                        ArrayRef<char> Data) {
   // Early return in case the node exists.
   {
     TrieRecord::Data Existing = I.Ref.load();
     if (Existing.OK == TrieRecord::ObjectKind::Object)
-      return getExternalReference(*makeInternalRef(I.Offset, Existing));
+      return getExternalReference(makeInternalRef(I.Offset));
     if (Existing.SK != TrieRecord::StorageKind::Unknown)
       return createCorruptObjectError(getID(I));
   }
@@ -1909,6 +1881,16 @@ Expected<ObjectRef> LuxonCAS::storeImpl(ArrayRef<uint8_t> ComputedHash,
   return loadOrCreateDataRecord(
       I, TrieRecord::ObjectKind::Object,
       DataRecordHandle::Input{I.Offset, InternalRefs, Data});
+}
+
+Error LuxonCAS::storeForRef(ObjectRef Ref, ArrayRef<ObjectRef> Refs,
+                            ArrayRef<char> Data) {
+  Optional<IndexProxy> I = getIndexProxyFromRef(getInternalRef(Ref));
+  if (!I)
+    report_fatal_error(
+        "LuxonCAS: corrupt internal reference to unknown object");
+  Optional<ObjectRef> Result;
+  return storeImpl(*I, Refs, Data).moveInto(Result);
 }
 
 Expected<ObjectRef>
@@ -1972,7 +1954,7 @@ LuxonCAS::loadOrCreateDataRecord(IndexProxy &I, TrieRecord::ObjectKind OK,
     // handle.
     if (Existing.SK == TrieRecord::StorageKind::Unknown) {
       if (I.Ref.compare_exchange_strong(Existing, NewObject))
-        return getExternalReference(*makeInternalRef(I.Offset, NewObject));
+        return getExternalReference(makeInternalRef(I.Offset));
     }
   }
 
@@ -1980,7 +1962,12 @@ LuxonCAS::loadOrCreateDataRecord(IndexProxy &I, TrieRecord::ObjectKind OK,
     return createCorruptObjectError(getID(I));
 
   // Load existing object.
-  return getExternalReference(*makeInternalRef(I.Offset, Existing));
+  return getExternalReference(makeInternalRef(I.Offset));
+}
+
+ObjectRef LuxonCAS::createRefFromHash(ArrayRef<uint8_t> Hash) {
+  IndexProxy I = indexHash(Hash);
+  return getExternalReference(makeInternalRef(I.Offset));
 }
 
 LuxonCAS::PooledDataRecord
@@ -2053,4 +2040,66 @@ Expected<std::unique_ptr<ObjectStore>> cas::createLuxonCAS(const Twine &Path) {
   sys::fs::make_absolute(AbsPath);
 
   return LuxonCAS::open(AbsPath);
+}
+
+uint64_t cas::luxon_ObjectStore_getInternalRef(ObjectStore &CAS,
+                                               ObjectRef Ref) {
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.getInternalRef(Ref).getRawData();
+}
+
+ObjectRef cas::luxon_ObjectStore_getObjectRefFromInternal(ObjectStore &CAS,
+                                                          uint64_t RawData) {
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.getExternalReference(InternalRef::getFromRawData(RawData));
+}
+
+ArrayRef<uint8_t> cas::luxon_ObjectStore_getHash(ObjectStore &CAS,
+                                                 ObjectRef Ref) {
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.getHash(Ref);
+}
+
+Expected<ObjectRef>
+cas::luxon_ObjectStore_createRefFromHash(ObjectStore &CAS,
+                                         ArrayRef<uint8_t> Hash) {
+  if (Hash.size() != sizeof(HashType))
+    return createStringError(errc::invalid_argument,
+                             "incompatible hash size, got " +
+                                 utostr(Hash.size()) + " expected " +
+                                 utostr(sizeof(HashType)));
+
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.createRefFromHash(Hash);
+}
+
+std::array<uint8_t, 65> luxon_ObjectStore_hashDigest(ObjectStore &CAS,
+                                                     ArrayRef<ObjectRef> Refs,
+                                                     ArrayRef<char> Data) {
+  return LuxonCASContext::hashObject(CAS, Refs, Data);
+}
+
+ObjectRef cas::luxon_ObjectStore_refDigest(ObjectStore &CAS,
+                                           ArrayRef<ObjectRef> Refs,
+                                           ArrayRef<char> Data) {
+  HashType Hash = LuxonCASContext::hashObject(CAS, Refs, Data);
+  return cantFail(luxon_ObjectStore_createRefFromHash(CAS, Hash));
+}
+
+bool cas::luxon_ObjectStore_containsRef(ObjectStore &CAS, ObjectRef Ref) {
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.containsRef(Ref);
+}
+
+Expected<Optional<ObjectProxy>> cas::luxon_ObjectStore_load(ObjectStore &CAS,
+                                                            ObjectRef Ref) {
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.loadProxy(Ref);
+}
+
+Error cas::luxon_ObjectStore_storeForRef(ObjectStore &CAS, ObjectRef Ref,
+                                         ArrayRef<ObjectRef> Refs,
+                                         ArrayRef<char> Data) {
+  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
+  return LuxCAS.storeForRef(Ref, Refs, Data);
 }

@@ -10,6 +10,7 @@ endif()
 set(LLVM_LINK_COMPONENTS
   Support
   CAS
+  Luxon
   RemoteCachingService
   TestingSupport
   ${ADDITIONAL_CAS_TEST_DEPS}
@@ -23,6 +24,7 @@ add_llvm_unittest(CASTests
   CASProvidingFileSystemTest.cpp
   CachingOnDiskFileSystemTest.cpp
   LazyAtomicPointerTest.cpp
+  LuxonStoreTest.cpp
   HashMappedTrieTest.cpp
   HierarchicalTreeBuilderTest.cpp
   MockGRPCServer.cpp

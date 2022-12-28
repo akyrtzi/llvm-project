@@ -2054,17 +2054,17 @@ LuxonCASContext::hashObjectWithHashes(const ObjectStore &CAS,
                                       ArrayRef<ArrayRef<uint8_t>> Hashes,
                                       ArrayRef<char> Data) {
   blake2b_state State;
-  blake2b_init(&State, 64);
+  llvm_blake2b_init(&State, 64);
   for (ArrayRef<uint8_t> Hash : Hashes) {
     assert(Hash.size() == sizeof(HashType) &&
            "Expected object ref to match the hash size");
-    blake2b_update(&State, Hash.data(), Hash.size());
+    llvm_blake2b_update(&State, Hash.data(), Hash.size());
   }
-  blake2b_update(&State, Data.data(), Data.size());
+  llvm_blake2b_update(&State, Data.data(), Data.size());
 
   LuxonCASContext::HashType Hash;
   Hash[0] = 0;
-  blake2b_final(&State, Hash.data() + 1, Hash.size() - 1);
+  llvm_blake2b_final(&State, Hash.data() + 1, Hash.size() - 1);
   return Hash;
 }
 

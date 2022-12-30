@@ -8,7 +8,7 @@
 using namespace llvm;
 using namespace llvm::cas;
 
-static constexpr StringRef LuxonCASScheme = "luxon://";
+static constexpr StringLiteral LuxonCASScheme = "luxon://";
 
 void cas::registerLuxonCAS() {
   cas::registerCASURLScheme(LuxonCASScheme, &createLuxonCAS);

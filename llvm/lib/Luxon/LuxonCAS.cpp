@@ -34,14 +34,19 @@ static Error sanitizedDecodeBase64(StringRef Input, std::vector<char> &Output) {
   SmallString<90> B64(Input);
   std::replace(B64.begin(), B64.end(), '-', '+');
   std::replace(B64.begin(), B64.end(), '_', '/');
-  return decodeBase64(Input, Output);
+  return decodeBase64(B64, Output);
+}
+
+void LuxonCASContext::printID(raw_ostream &OS, ArrayRef<uint8_t> ID) {
+  OS << "0~" << sanitizedEncodeBase64(ID.drop_front());
 }
 
 void LuxonCASContext::printIDImpl(raw_ostream &OS, const CASID &ID) const {
-  OS << "0~" << sanitizedEncodeBase64(ID.getHash().drop_front());
+  printID(OS, ID.getHash());
 }
 
-Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
+Expected<LuxonCASContext::HashType>
+LuxonCASContext::rawParseID(StringRef Reference) {
   // Test for the kind in the first position.
   if (LLVM_UNLIKELY(!Reference.consume_front("0")))
     return createStringError(errc::invalid_argument,
@@ -56,12 +61,21 @@ Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
   if (Error E = sanitizedDecodeBase64(Reference, Binary))
     return E;
 
-  Binary.insert(Binary.begin(), 0);
-  if (Binary.size() != sizeof(HashType))
+  if (Binary.size() != sizeof(HashType) - 1)
     return createStringError(errc::invalid_argument,
                              "wrong size for cas-id hash '" + Reference + "'");
 
-  return CASID::create(this, toStringRef(Binary));
+  HashType Hash;
+  Hash[0] = 0;
+  std::uninitialized_copy(Binary.begin(), Binary.end(), Hash.data() + 1);
+  return Hash;
+}
+
+Expected<CASID> LuxonCASContext::parseID(StringRef Reference) const {
+  Expected<HashType> Hash = rawParseID(Reference);
+  if (!Hash)
+    return Hash.takeError();
+  return CASID::create(this, toStringRef(*Hash));
 }
 
 const LuxonCASContext &LuxonCASContext::getDefaultContext() {

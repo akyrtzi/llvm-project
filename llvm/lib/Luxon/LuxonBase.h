@@ -12,9 +12,12 @@ class LuxonCASContext : public CASContext {
   void printIDImpl(raw_ostream &OS, const CASID &ID) const final;
 
 public:
+  using HashType = std::array<uint8_t, 65>;
+  static Expected<HashType> rawParseID(StringRef Reference);
   Expected<CASID> parseID(StringRef Reference) const;
 
-  using HashType = std::array<uint8_t, 65>;
+  static void printID(raw_ostream &OS, ArrayRef<uint8_t> ID);
+
   static HashType hashObject(const ObjectStore &CAS, ArrayRef<ObjectRef> Refs,
                              ArrayRef<char> Data);
   static HashType hashObjectWithHashes(const ObjectStore &CAS,

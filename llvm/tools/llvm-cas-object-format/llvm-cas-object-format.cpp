@@ -8,9 +8,11 @@
 
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/BinaryFormat/Magic.h"
 #include "llvm/CAS/HierarchicalTreeBuilder.h"
 #include "llvm/CAS/TreeSchema.h"
 #include "llvm/CASObjectFormats/CASObjectReader.h"
+#include "llvm/CASObjectFormats/Encoding.h"
 #include "llvm/CASObjectFormats/FlatV1.h"
 #include "llvm/CASObjectFormats/LinkGraph.h"
 #include "llvm/CASObjectFormats/NestedV1.h"
@@ -19,9 +21,13 @@
 #include "llvm/ExecutionEngine/JITLink/JITLink.h"
 #include "llvm/ExecutionEngine/JITLink/MachO.h"
 #include "llvm/ExecutionEngine/JITLink/MachO_x86_64.h"
+#include "llvm/Luxon/FileBackedCAS.h"
+#include "llvm/Luxon/LMDBCAS.h"
 #include "llvm/Luxon/Luxon.h"
+#include "llvm/Luxon/SQLiteCAS.h"
 #include "llvm/MC/CAS/MCCASObjectV1.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
+#include "llvm/Support/BLAKE3.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileOutputBuffer.h"
@@ -79,6 +85,8 @@ cl::opt<unsigned>
 cl::opt<bool> IsFileList("file-list",
                          cl::desc("The argument is a file path for a list of "
                                   "CASIDs, instead of a CASID"));
+cl::opt<bool> WalkTree("walk", cl::desc("Walk the CAS tree, hashing data"));
+cl::opt<bool> PrintStats("print-stats", cl::desc("Print walk stats"));
 
 cl::opt<std::string>
     IngestSchemaName("ingest-schema",
@@ -902,6 +910,166 @@ static Error materializeObjectsFromCASTree(ObjectStore &CAS, ObjectProxy ID) {
       });
 }
 
+static Expected<std::string> rawReadCASIDBuffer(MemoryBufferRef Buffer) {
+  if (identify_magic(Buffer.getBuffer()) != file_magic::cas_id)
+    return createStringError(std::errc::invalid_argument,
+                             "buffer does not contain a CASID");
+
+  StringRef Remaining =
+      Buffer.getBuffer().substr(StringRef(casidObjectMagicPrefix).size());
+  uint32_t Size;
+  if (auto E = encoding::consumeVBR8(Remaining, Size))
+    return std::move(E);
+
+  StringRef CASIDStr = Remaining.substr(0, Size);
+  return CASIDStr.str();
+}
+
+static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
+                                     StringRef CASPath, ObjectStore &CAS) {
+  std::atomic<uint64_t> TotalData = 0;
+  std::atomic<uint64_t> TotalNodes = 0;
+
+  auto walkAlternativeDB = [&TotalData, &TotalNodes](StringRef CASID,
+                                                     auto &CAS) -> Error {
+    auto Root = CAS.parseID(CASID);
+    if (!Root)
+      return Root.takeError();
+
+    using DataID = typename std::remove_reference<
+        decltype(typename std::remove_reference<
+                     decltype(CAS)>::type::CASObject()
+                     .Refs.front())>::type;
+
+    uint64_t FileData = 0;
+    uint64_t FileNodes = 0;
+
+    BLAKE3 hasher;
+    std::deque<DataID> WorkQueue;
+    WorkQueue.push_back(*Root);
+
+    while (!WorkQueue.empty()) {
+      ++FileNodes;
+      DataID Ref = WorkQueue.front();
+      WorkQueue.pop_front();
+      auto Obj = CAS.get(Ref);
+      if (!Obj)
+        return Obj.takeError();
+      StringRef Data = (*Obj)->Data;
+      hasher.update(Data);
+      FileData += Data.size();
+      for (const DataID &ID : (*Obj)->Refs) {
+        WorkQueue.push_back(ID);
+      }
+    }
+
+    TotalData += FileData;
+    TotalNodes += FileNodes;
+    return Error::success();
+  };
+
+  auto walkObjectStore = [&TotalData, &TotalNodes](ObjectRef Root,
+                                                   ObjectStore &CAS) -> Error {
+    uint64_t FileData = 0;
+    uint64_t FileNodes = 0;
+
+    BLAKE3 hasher;
+    std::deque<ObjectRef> WorkQueue;
+    WorkQueue.push_back(Root);
+
+    while (!WorkQueue.empty()) {
+      ++FileNodes;
+      ObjectRef Ref = WorkQueue.front();
+      WorkQueue.pop_front();
+      auto Obj = CAS.getProxy(Ref);
+      if (!Obj)
+        return Obj.takeError();
+      StringRef Data = Obj->getData();
+      hasher.update(Data);
+      FileData += Data.size();
+      if (Error E = Obj->forEachReference([&WorkQueue](ObjectRef Sub) -> Error {
+            WorkQueue.push_back(Sub);
+            return Error::success();
+          }))
+        return E;
+    }
+
+    TotalData += FileData;
+    TotalNodes += FileNodes;
+    return Error::success();
+  };
+
+  std::unique_ptr<FileBackedCAS> FBCAS;
+  if (CASPath.startswith("luxfile://")) {
+    ExitOnError ExitOnErr;
+    FBCAS =
+        ExitOnErr(FileBackedCAS::create(CASPath.substr(strlen("luxfile://"))));
+  }
+
+  std::unique_ptr<LMDBCAS> LMCAS;
+  if (CASPath.startswith("luxlmdb://")) {
+    ExitOnError ExitOnErr;
+    LMCAS = ExitOnErr(LMDBCAS::create(CASPath.substr(strlen("luxlmdb://"))));
+  }
+
+  StringRef SQLitePath;
+  if (CASPath.startswith("luxsql://")) {
+    SQLitePath = CASPath.substr(strlen("luxsql://"));
+  }
+  SmallVector<std::unique_ptr<SQLiteCAS>> SQLCASes;
+  std::mutex Mtx;
+
+  auto walkCASIDFile = [&](StringRef Path) {
+    ExitOnError ExitOnErr;
+    ExitOnErr.setBanner(("llvm-cas-object-format: " + Path + ": ").str());
+
+    auto CASIDBuf = MemoryBuffer::getFile(Path);
+    if (!CASIDBuf)
+      ExitOnErr(errorCodeToError(CASIDBuf.getError()));
+
+    if (FBCAS || LMCAS || !SQLitePath.empty()) {
+      std::string CASID = ExitOnErr(rawReadCASIDBuffer(**CASIDBuf));
+      if (FBCAS) {
+        ExitOnErr(walkAlternativeDB(CASID, *FBCAS));
+      } else if (LMCAS) {
+        ExitOnErr(walkAlternativeDB(CASID, *LMCAS));
+      } else {
+        std::unique_ptr<SQLiteCAS> SQLCAS;
+        {
+          std::lock_guard<std::mutex> Lock(Mtx);
+          if (SQLCASes.empty())
+            SQLCASes.push_back(ExitOnErr(SQLiteCAS::create(SQLitePath)));
+          SQLCAS = SQLCASes.pop_back_val();
+        }
+        ExitOnErr(walkAlternativeDB(CASID, *SQLCAS));
+        {
+          std::lock_guard<std::mutex> Lock(Mtx);
+          SQLCASes.push_back(std::move(SQLCAS));
+        }
+      }
+    } else {
+      CASID CASID = ExitOnErr(readCASIDBuffer(CAS, **CASIDBuf));
+      auto Root = *CAS.getReference(CASID);
+      ExitOnErr(walkObjectStore(Root, CAS));
+    }
+  };
+
+  ThreadPool Pool;
+
+  for (StringRef Path : Paths) {
+    if (Path.empty())
+      continue;
+    Pool.async(walkCASIDFile, Path);
+  }
+  Pool.wait();
+
+  if (PrintStats) {
+    outs() << "total nodes: " << TotalNodes << '\n';
+    outs() << "total data: " << TotalData << '\n';
+  }
+  return Error::success();
+}
+
 static Error materializeObjectsFromFileList(ObjectStore &CAS,
                                             StringRef FilePath) {
   auto MemBuf = MemoryBuffer::getFile(FilePath);
@@ -909,6 +1077,10 @@ static Error materializeObjectsFromFileList(ObjectStore &CAS,
     return errorCodeToError(MemBuf.getError());
   SmallVector<StringRef> Paths;
   (*MemBuf)->getBuffer().split(Paths, "\n");
+
+  if (WalkTree) {
+    return walkObjectsFromFileList(Paths, CASPath, CAS);
+  }
 
   auto Schema = std::make_unique<llvm::mccasformats::v1::MCSchema>(CAS);
 

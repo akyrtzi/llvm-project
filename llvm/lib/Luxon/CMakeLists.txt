@@ -1,3 +1,5 @@
+find_package(SQLite3 REQUIRED)
+
 add_subdirectory(BLAKE2)
 
 if (LLVM_ENABLE_ONDISK_CAS)
@@ -5,9 +7,15 @@ if (LLVM_ENABLE_ONDISK_CAS)
 endif()
 
 add_llvm_component_library(LLVMLuxon
+  FileBackedCAS.cpp
+  LMDBCAS.cpp
   Luxon.cpp
   LuxonActionCache.cpp
   LuxonCAS.cpp
+  SQLiteCAS.cpp
+
+  lmdb/mdb.c
+  lmdb/midl.c
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/Luxon
@@ -17,4 +25,8 @@ add_llvm_component_library(LLVMLuxon
   LuxonBLAKE2
   RemoteCachingService
   Support
+)
+
+target_link_libraries(LLVMLuxon PRIVATE
+  SQLite::SQLite3
 )

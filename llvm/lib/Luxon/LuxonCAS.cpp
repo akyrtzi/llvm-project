@@ -17,11 +17,12 @@
 #define DEBUG_TYPE "luxon-cas"
 
 //===----------------------------------------------------------------------===//
-// LuxonCASBase
+// LuxonStoreBase
 //===----------------------------------------------------------------------===//
 
 using namespace llvm;
 using namespace llvm::cas;
+using namespace llvm::cas::luxon;
 
 static std::string sanitizedEncodeBase64(ArrayRef<uint8_t> Bytes) {
   std::string B64 = encodeBase64(Bytes);
@@ -87,9 +88,9 @@ namespace {
 
 using HashType = LuxonCASContext::HashType;
 
-class LuxonCASBase : public ObjectStore {
+class LuxonStoreBase : public ObjectStore {
 public:
-  LuxonCASBase() : ObjectStore(LuxonCASContext::getDefaultContext()) {}
+  LuxonStoreBase() : ObjectStore(LuxonCASContext::getDefaultContext()) {}
 
   Expected<CASID> parseID(StringRef Reference) final;
 
@@ -116,7 +117,7 @@ public:
 
   ArrayRef<char> getData(ObjectHandle Node,
                          bool RequiresNullTerminator) const final {
-    // LuxonCASBase Objects are always null terminated.
+    // LuxonStoreBase Objects are always null terminated.
     return getDataConst(Node);
   }
   uint64_t getDataSize(ObjectHandle Node) const final {
@@ -141,7 +142,7 @@ public:
   Error validate(const CASID &ID) final;
 };
 
-Expected<CASID> LuxonCASBase::parseID(StringRef Reference) {
+Expected<CASID> LuxonStoreBase::parseID(StringRef Reference) {
   return static_cast<const LuxonCASContext &>(getContext()).parseID(Reference);
 }
 
@@ -151,8 +152,8 @@ static size_t getPageSize() {
 }
 
 Expected<ObjectRef>
-LuxonCASBase::storeFromOpenFileImpl(sys::fs::file_t FD,
-                                    Optional<sys::fs::file_status> Status) {
+LuxonStoreBase::storeFromOpenFileImpl(sys::fs::file_t FD,
+                                      Optional<sys::fs::file_status> Status) {
   int PageSize = getPageSize();
 
   if (!Status) {
@@ -189,19 +190,21 @@ LuxonCASBase::storeFromOpenFileImpl(sys::fs::file_t FD,
   // that the file size may have changed from ::stat if this file is volatile,
   // so we need to check for an actual null character at the end.
   ArrayRef<char> Data(Map.data(), Map.size());
-  HashType ComputedHash =
-      LuxonCASContext::hashObject(*this, std::nullopt, Data);
+  HashType ComputedHash = LuxonCASContext::hashObject(
+      *this, std::nullopt, StringRef(Data.data(), Data.size()));
   if (!isAligned(Align(PageSize), Data.size()) && Data.end()[0] == 0)
     return storeFromNullTerminatedRegion(ComputedHash, std::move(Map));
   return storeImpl(ComputedHash, std::nullopt, Data);
 }
 
-Expected<ObjectRef> LuxonCASBase::store(ArrayRef<ObjectRef> Refs,
-                                        ArrayRef<char> Data) {
-  return storeImpl(LuxonCASContext::hashObject(*this, Refs, Data), Refs, Data);
+Expected<ObjectRef> LuxonStoreBase::store(ArrayRef<ObjectRef> Refs,
+                                          ArrayRef<char> Data) {
+  return storeImpl(LuxonCASContext::hashObject(
+                       *this, Refs, StringRef(Data.data(), Data.size())),
+                   Refs, Data);
 }
 
-Error LuxonCASBase::validate(const CASID &ID) {
+Error LuxonStoreBase::validate(const CASID &ID) {
   auto Ref = getReference(ID);
   if (!Ref)
     return createUnknownObjectError(ID);
@@ -218,8 +221,7 @@ Error LuxonCASBase::validate(const CASID &ID) {
       }))
     return E;
 
-  ArrayRef<char> Data(Proxy.getData().data(), Proxy.getData().size());
-  auto Hash = LuxonCASContext::hashObject(*this, Refs, Data);
+  auto Hash = LuxonCASContext::hashObject(*this, Refs, Proxy.getData());
   if (!ID.getHash().equals(Hash))
     return createCorruptObjectError(ID);
 
@@ -867,18 +869,18 @@ struct OnDiskContent {
 /// the files seems more convenient for now.
 ///
 /// Eventually: update UniqueID/CASID to store:
-/// - uint64_t: for LuxonCASBase, this is a pointer to Trie record
+/// - uint64_t: for LuxonStore, this is a pointer to Trie record
 /// - ObjectStore*: for knowing how to compare, and for getHash()
 ///
 /// Eventually: add ObjectHandle (update ObjectRef):
-/// - uint64_t: for LuxonCASBase, this is a pointer to Data record
+/// - uint64_t: for LuxonStore, this is a pointer to Data record
 /// - ObjectStore*: for implementing APIs
 ///
 /// Eventually: consider creating a StringPool for strings instead of using
 /// RecordDataStore table.
 /// - Lookup by prefix tree
 /// - Store by suffix tree
-class LuxonCAS : public LuxonCASBase {
+class LuxonStore : public LuxonStoreBase {
 public:
   static StringRef getIndexTableName() {
     static const std::string Name =
@@ -954,10 +956,10 @@ public:
   Expected<ObjectHandle> load(const IndexProxy &I, TrieRecord::Data Object,
                               InternalRef Ref);
 
-  ObjectHandle getLoadedObject(const IndexProxy &I, TrieRecord::Data Object,
-                               InternalHandle Handle) const;
+  ObjectHandle getLoadedObject(InternalHandle Handle) const;
+  ObjectHandle getLoadedObjectFromRawData(uint64_t RawData) const;
 
-  Expected<Optional<ObjectProxy>> loadProxy(ObjectRef Ref);
+  Expected<Optional<ObjectHandle>> loadObject(ObjectRef Ref);
   bool containsRef(ObjectRef Ref);
 
   struct PooledDataRecord {
@@ -1009,14 +1011,8 @@ public:
 
   void print(raw_ostream &OS) const final;
 
-  static Expected<std::unique_ptr<LuxonCAS>> open(StringRef Path);
+  static Expected<std::unique_ptr<LuxonStore>> open(StringRef Path);
 
-private:
-  InternalRefArrayRef getRefs(ObjectHandle Node) const {
-    if (Optional<DataRecordHandle> Record = getDataRecordForObject(Node))
-      return Record->getRefs();
-    return std::nullopt;
-  }
   size_t getNumRefs(ObjectHandle Node) const final {
     return getRefs(Node).size();
   }
@@ -1026,12 +1022,19 @@ private:
   Error forEachRef(ObjectHandle Node,
                    function_ref<Error(ObjectRef)> Callback) const final;
 
+private:
+  InternalRefArrayRef getRefs(ObjectHandle Node) const {
+    if (Optional<DataRecordHandle> Record = getDataRecordForObject(Node))
+      return Record->getRefs();
+    return std::nullopt;
+  }
+
   Expected<std::unique_ptr<MemoryBuffer>> openFile(StringRef Path);
   Expected<std::unique_ptr<MemoryBuffer>> openFileWithID(StringRef BaseDir,
                                                          CASID ID);
 
-  LuxonCAS(StringRef RootPath, OnDiskHashMappedTrie Index,
-           OnDiskDataAllocator DataPool);
+  LuxonStore(StringRef RootPath, OnDiskHashMappedTrie Index,
+             OnDiskDataAllocator DataPool);
 
   /// Mapping from hash to object reference.
   ///
@@ -1060,12 +1063,12 @@ private:
 
 } // end anonymous namespace
 
-constexpr StringLiteral LuxonCAS::IndexFile;
-constexpr StringLiteral LuxonCAS::DataPoolFile;
-constexpr StringLiteral LuxonCAS::FilePrefix;
-constexpr StringLiteral LuxonCAS::FileSuffixData;
-constexpr StringLiteral LuxonCAS::FileSuffixLeaf;
-constexpr StringLiteral LuxonCAS::FileSuffixLeaf0;
+constexpr StringLiteral LuxonStore::IndexFile;
+constexpr StringLiteral LuxonStore::DataPoolFile;
+constexpr StringLiteral LuxonStore::FilePrefix;
+constexpr StringLiteral LuxonStore::FileSuffixData;
+constexpr StringLiteral LuxonStore::FileSuffixLeaf;
+constexpr StringLiteral LuxonStore::FileSuffixLeaf0;
 
 template <size_t N>
 const StandaloneDataInMemory &
@@ -1096,7 +1099,7 @@ StandaloneDataMap<N>::lookup(ArrayRef<uint8_t> Hash) const {
 ///
 /// FIXME: Add a TempFileManager that maintains a thread-safe list of open temp
 /// files and has a signal handler registerd that removes them all.
-class LuxonCAS::TempFile {
+class LuxonStore::TempFile {
   bool Done = false;
   TempFile(StringRef Name, int FD) : TmpName(std::string(Name)), FD(FD) {}
 
@@ -1126,7 +1129,7 @@ public:
   ~TempFile() { consumeError(discard()); }
 };
 
-class LuxonCAS::MappedTempFile {
+class LuxonStore::MappedTempFile {
 public:
   char *data() const { return Map.data(); }
   size_t size() const { return Map.size(); }
@@ -1151,7 +1154,7 @@ private:
   sys::fs::mapped_file_region Map;
 };
 
-Error LuxonCAS::TempFile::discard() {
+Error LuxonStore::TempFile::discard() {
   Done = true;
   if (FD != -1) {
     sys::fs::file_t File = sys::fs::convertFDToNativeFile(FD);
@@ -1170,7 +1173,7 @@ Error LuxonCAS::TempFile::discard() {
   return Error::success();
 }
 
-Error LuxonCAS::TempFile::keep(const Twine &Name) {
+Error LuxonStore::TempFile::keep(const Twine &Name) {
   assert(!Done);
   Done = true;
   // Always try to close and rename.
@@ -1187,7 +1190,8 @@ Error LuxonCAS::TempFile::keep(const Twine &Name) {
   return errorCodeToError(RenameEC);
 }
 
-Expected<LuxonCAS::TempFile> LuxonCAS::TempFile::create(const Twine &Model) {
+Expected<LuxonStore::TempFile>
+LuxonStore::TempFile::create(const Twine &Model) {
   int FD;
   SmallString<128> ResultPath;
   if (std::error_code EC = sys::fs::createUniqueFile(Model, FD, ResultPath))
@@ -1475,7 +1479,7 @@ int64_t DataRecordHandle::getDataRelOffset() const {
   return RelOffset;
 }
 
-void LuxonCAS::print(raw_ostream &OS) const {
+void LuxonStore::print(raw_ostream &OS) const {
   OS << "luxon-cas-root-path: " << RootPath << "\n";
 
   struct PoolInfo {
@@ -1547,7 +1551,7 @@ void LuxonCAS::print(raw_ostream &OS) const {
   }
 }
 
-IndexProxy LuxonCAS::indexHash(ArrayRef<uint8_t> Hash) {
+IndexProxy LuxonStore::indexHash(ArrayRef<uint8_t> Hash) {
   OnDiskHashMappedTrie::pointer P = Index.insertLazy(
       Hash, [](FileOffset TentativeOffset,
                OnDiskHashMappedTrie::ValueProxy TentativeValue) {
@@ -1560,7 +1564,7 @@ IndexProxy LuxonCAS::indexHash(ArrayRef<uint8_t> Hash) {
   return getIndexProxyFromPointer(P);
 }
 
-IndexProxy LuxonCAS::getIndexProxyFromPointer(
+IndexProxy LuxonStore::getIndexProxyFromPointer(
     OnDiskHashMappedTrie::const_pointer P) const {
   assert(P);
   assert(P.getOffset());
@@ -1569,7 +1573,7 @@ IndexProxy LuxonCAS::getIndexProxyFromPointer(
                         reinterpret_cast<const TrieRecord *>(P->Data.data()))};
 }
 
-Optional<ObjectRef> LuxonCAS::getReference(const CASID &ID) const {
+Optional<ObjectRef> LuxonStore::getReference(const CASID &ID) const {
   OnDiskHashMappedTrie::const_pointer P = getInternalIndexPointer(ID);
   if (!P)
     return std::nullopt;
@@ -1579,7 +1583,7 @@ Optional<ObjectRef> LuxonCAS::getReference(const CASID &ID) const {
 }
 
 OnDiskHashMappedTrie::const_pointer
-LuxonCAS::getInternalIndexPointer(const CASID &ID) const {
+LuxonStore::getInternalIndexPointer(const CASID &ID) const {
   assert(ID.getContext().getHashSchemaIdentifier() ==
              getContext().getHashSchemaIdentifier() &&
          "Expected ID from same hash schema");
@@ -1587,22 +1591,22 @@ LuxonCAS::getInternalIndexPointer(const CASID &ID) const {
 }
 
 OnDiskHashMappedTrie::const_pointer
-LuxonCAS::getInternalIndexPointer(InternalRef Ref) const {
+LuxonStore::getInternalIndexPointer(InternalRef Ref) const {
   FileOffset Offset = getIndexOffset(Ref);
   return Index.recoverFromFileOffset(Offset);
 }
 
-Optional<IndexProxy> LuxonCAS::getIndexProxyFromRef(InternalRef Ref) const {
+Optional<IndexProxy> LuxonStore::getIndexProxyFromRef(InternalRef Ref) const {
   if (OnDiskHashMappedTrie::const_pointer P = getInternalIndexPointer(Ref))
     return getIndexProxyFromPointer(P);
   return std::nullopt;
 }
 
-FileOffset LuxonCAS::getIndexOffset(InternalRef Ref) const {
+FileOffset LuxonStore::getIndexOffset(InternalRef Ref) const {
   return Ref.getFileOffset();
 }
 
-CASID LuxonCAS::getID(InternalRef Ref) const {
+CASID LuxonStore::getID(InternalRef Ref) const {
   Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
   if (!I)
     report_fatal_error(
@@ -1611,7 +1615,7 @@ CASID LuxonCAS::getID(InternalRef Ref) const {
   return CASID::create(&getContext(), Hash);
 }
 
-ArrayRef<uint8_t> LuxonCAS::getHash(InternalRef Ref) const {
+ArrayRef<uint8_t> LuxonStore::getHash(InternalRef Ref) const {
   Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
   if (!I)
     report_fatal_error(
@@ -1619,7 +1623,7 @@ ArrayRef<uint8_t> LuxonCAS::getHash(InternalRef Ref) const {
   return getHash(*I);
 }
 
-ArrayRef<char> LuxonCAS::getDataConst(ObjectHandle Node) const {
+ArrayRef<char> LuxonStore::getDataConst(ObjectHandle Node) const {
   OnDiskContent Content = getContentFromHandle(Node);
   if (Content.Bytes)
     return *Content.Bytes;
@@ -1627,7 +1631,7 @@ ArrayRef<char> LuxonCAS::getDataConst(ObjectHandle Node) const {
   return Content.Record->getData();
 }
 
-Expected<ObjectHandle> LuxonCAS::load(ObjectRef ExternalRef) {
+Expected<ObjectHandle> LuxonStore::load(ObjectRef ExternalRef) {
   InternalRef Ref = getInternalRef(ExternalRef);
   Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
   if (!I)
@@ -1636,26 +1640,25 @@ Expected<ObjectHandle> LuxonCAS::load(ObjectRef ExternalRef) {
   return load(*I, I->Ref.load(), Ref);
 }
 
-ObjectHandle LuxonCAS::getLoadedObject(const IndexProxy &I,
-                                       TrieRecord::Data Object,
-                                       InternalHandle Handle) const {
-  switch (Object.OK) {
-  case TrieRecord::ObjectKind::Invalid:
-  case TrieRecord::ObjectKind::Object:
-    return makeObjectHandle(Handle.getRawData());
-  }
+ObjectHandle LuxonStore::getLoadedObject(InternalHandle Handle) const {
+  return getLoadedObjectFromRawData(Handle.getRawData());
 }
 
-Expected<ObjectHandle>
-LuxonCAS::load(const IndexProxy &I, TrieRecord::Data Object, InternalRef Ref) {
+ObjectHandle LuxonStore::getLoadedObjectFromRawData(uint64_t RawData) const {
+  return makeObjectHandle(RawData);
+}
+
+Expected<ObjectHandle> LuxonStore::load(const IndexProxy &I,
+                                        TrieRecord::Data Object,
+                                        InternalRef Ref) {
   Optional<InternalHandle> Handle;
   if (Error E = loadContentForRef(I, Object, Ref).moveInto(Handle))
     return std::move(E);
 
-  return getLoadedObject(I, Object, *Handle);
+  return getLoadedObject(*Handle);
 }
 
-Expected<Optional<ObjectProxy>> LuxonCAS::loadProxy(ObjectRef ExternalRef) {
+Expected<Optional<ObjectHandle>> LuxonStore::loadObject(ObjectRef ExternalRef) {
   InternalRef Ref = getInternalRef(ExternalRef);
   Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
   if (!I)
@@ -1668,10 +1671,10 @@ Expected<Optional<ObjectProxy>> LuxonCAS::loadProxy(ObjectRef ExternalRef) {
   Expected<ObjectHandle> Handle = load(*I, Obj, Ref);
   if (!Handle)
     return Handle.takeError();
-  return ObjectProxy::load(*this, *Handle);
+  return *Handle;
 }
 
-bool LuxonCAS::containsRef(ObjectRef ExternalRef) {
+bool LuxonStore::containsRef(ObjectRef ExternalRef) {
   InternalRef Ref = getInternalRef(ExternalRef);
   Optional<IndexProxy> I = getIndexProxyFromRef(Ref);
   if (!I)
@@ -1681,13 +1684,13 @@ bool LuxonCAS::containsRef(ObjectRef ExternalRef) {
   return Obj.OK != TrieRecord::ObjectKind::Invalid;
 }
 
-InternalRef LuxonCAS::makeInternalRef(FileOffset IndexOffset) const {
+InternalRef LuxonStore::makeInternalRef(FileOffset IndexOffset) const {
   return InternalRef::getFromOffset(IndexOffset);
 }
 
-void LuxonCAS::getStandalonePath(TrieRecord::StorageKind SK,
-                                 const IndexProxy &I,
-                                 SmallVectorImpl<char> &Path) const {
+void LuxonStore::getStandalonePath(TrieRecord::StorageKind SK,
+                                   const IndexProxy &I,
+                                   SmallVectorImpl<char> &Path) const {
   StringRef Suffix;
   switch (SK) {
   default:
@@ -1708,9 +1711,9 @@ void LuxonCAS::getStandalonePath(TrieRecord::StorageKind SK,
   sys::path::append(Path, FilePrefix + Twine(I.Offset.get()) + Suffix);
 }
 
-Expected<InternalHandle> LuxonCAS::loadContentForRef(const IndexProxy &I,
-                                                     TrieRecord::Data Object,
-                                                     InternalRef Ref) {
+Expected<InternalHandle> LuxonStore::loadContentForRef(const IndexProxy &I,
+                                                       TrieRecord::Data Object,
+                                                       InternalRef Ref) {
   if (Object.SK == TrieRecord::StorageKind::DataPool)
     return InternalHandle(Object.Offset);
 
@@ -1746,7 +1749,7 @@ Expected<InternalHandle> LuxonCAS::loadContentForRef(const IndexProxy &I,
       StandaloneData.insert(I.Hash, Ref, Object.SK, std::move(*OwnedBuffer)));
 }
 
-OnDiskContent LuxonCAS::getContentFromHandle(InternalHandle Handle) const {
+OnDiskContent LuxonStore::getContentFromHandle(InternalHandle Handle) const {
   if (Handle.SDIM)
     return Handle.SDIM->getContent();
 
@@ -1756,7 +1759,7 @@ OnDiskContent LuxonCAS::getContentFromHandle(InternalHandle Handle) const {
   return OnDiskContent{DataHandle, std::nullopt};
 }
 
-InternalRef LuxonCAS::getInternalRef(InternalHandle Handle) const {
+InternalRef LuxonStore::getInternalRef(InternalHandle Handle) const {
   if (auto *SDIM = Handle.SDIM)
     return SDIM->Ref;
 
@@ -1794,8 +1797,8 @@ OnDiskContent StandaloneDataInMemory::getContent() const {
   return OnDiskContent{Record, std::nullopt};
 }
 
-Expected<LuxonCAS::MappedTempFile> LuxonCAS::createTempFile(StringRef FinalPath,
-                                                            uint64_t Size) {
+Expected<LuxonStore::MappedTempFile>
+LuxonStore::createTempFile(StringRef FinalPath, uint64_t Size) {
   assert(Size && "Unexpected request for an empty temp file");
   Expected<TempFile> File = TempFile::create(FinalPath + ".%%%%%%");
   if (!File)
@@ -1813,8 +1816,8 @@ Expected<LuxonCAS::MappedTempFile> LuxonCAS::createTempFile(StringRef FinalPath,
   return MappedTempFile(std::move(*File), std::move(Map));
 }
 
-Expected<ObjectRef> LuxonCAS::createStandaloneLeaf(IndexProxy &I,
-                                                   ArrayRef<char> Data) {
+Expected<ObjectRef> LuxonStore::createStandaloneLeaf(IndexProxy &I,
+                                                     ArrayRef<char> Data) {
   assert(Data.size() > TrieRecord::MaxEmbeddedSize &&
          "Expected a bigger file for external content...");
 
@@ -1856,15 +1859,16 @@ Expected<ObjectRef> LuxonCAS::createStandaloneLeaf(IndexProxy &I,
   return getExternalReference(makeInternalRef(I.Offset));
 }
 
-Expected<ObjectRef> LuxonCAS::storeImpl(ArrayRef<uint8_t> ComputedHash,
-                                        ArrayRef<ObjectRef> Refs,
-                                        ArrayRef<char> Data) {
+Expected<ObjectRef> LuxonStore::storeImpl(ArrayRef<uint8_t> ComputedHash,
+                                          ArrayRef<ObjectRef> Refs,
+                                          ArrayRef<char> Data) {
   IndexProxy I = indexHash(ComputedHash);
   return storeImpl(I, Refs, Data);
 }
 
-Expected<ObjectRef> LuxonCAS::storeImpl(IndexProxy &I, ArrayRef<ObjectRef> Refs,
-                                        ArrayRef<char> Data) {
+Expected<ObjectRef> LuxonStore::storeImpl(IndexProxy &I,
+                                          ArrayRef<ObjectRef> Refs,
+                                          ArrayRef<char> Data) {
   // Early return in case the node exists.
   {
     TrieRecord::Data Existing = I.Ref.load();
@@ -1891,8 +1895,8 @@ Expected<ObjectRef> LuxonCAS::storeImpl(IndexProxy &I, ArrayRef<ObjectRef> Refs,
       DataRecordHandle::Input{I.Offset, InternalRefs, Data});
 }
 
-Error LuxonCAS::storeForRef(ObjectRef Ref, ArrayRef<ObjectRef> Refs,
-                            ArrayRef<char> Data) {
+Error LuxonStore::storeForRef(ObjectRef Ref, ArrayRef<ObjectRef> Refs,
+                              ArrayRef<char> Data) {
   Optional<IndexProxy> I = getIndexProxyFromRef(getInternalRef(Ref));
   if (!I)
     report_fatal_error(
@@ -1902,8 +1906,8 @@ Error LuxonCAS::storeForRef(ObjectRef Ref, ArrayRef<ObjectRef> Refs,
 }
 
 Expected<ObjectRef>
-LuxonCAS::loadOrCreateDataRecord(IndexProxy &I, TrieRecord::ObjectKind OK,
-                                 DataRecordHandle::Input Input) {
+LuxonStore::loadOrCreateDataRecord(IndexProxy &I, TrieRecord::ObjectKind OK,
+                                   DataRecordHandle::Input Input) {
   // Compute the storage kind, allocate it, and create the record.
   TrieRecord::StorageKind SK = TrieRecord::StorageKind::Unknown;
   FileOffset PoolOffset;
@@ -1973,13 +1977,13 @@ LuxonCAS::loadOrCreateDataRecord(IndexProxy &I, TrieRecord::ObjectKind OK,
   return getExternalReference(makeInternalRef(I.Offset));
 }
 
-ObjectRef LuxonCAS::createRefFromHash(ArrayRef<uint8_t> Hash) {
+ObjectRef LuxonStore::createRefFromHash(ArrayRef<uint8_t> Hash) {
   IndexProxy I = indexHash(Hash);
   return getExternalReference(makeInternalRef(I.Offset));
 }
 
-LuxonCAS::PooledDataRecord
-LuxonCAS::createPooledDataRecord(DataRecordHandle::Input Input) {
+LuxonStore::PooledDataRecord
+LuxonStore::createPooledDataRecord(DataRecordHandle::Input Input) {
   FileOffset Offset;
   auto Alloc = [&](size_t Size) -> char * {
     OnDiskDataAllocator::pointer P = DataPool.allocate(Size);
@@ -1995,15 +1999,15 @@ LuxonCAS::createPooledDataRecord(DataRecordHandle::Input Input) {
   return PooledDataRecord{Offset, Record};
 }
 
-Error LuxonCAS::forEachRef(ObjectHandle Node,
-                           function_ref<Error(ObjectRef)> Callback) const {
+Error LuxonStore::forEachRef(ObjectHandle Node,
+                             function_ref<Error(ObjectRef)> Callback) const {
   for (InternalRef Ref : getRefs(Node))
     if (Error E = Callback(getExternalReference(Ref)))
       return E;
   return Error::success();
 }
 
-Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::open(StringRef AbsPath) {
+Expected<std::unique_ptr<LuxonStore>> LuxonStore::open(StringRef AbsPath) {
   if (std::error_code EC = sys::fs::create_directories(AbsPath))
     return createFileError(AbsPath, EC);
 
@@ -2027,12 +2031,12 @@ Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::open(StringRef AbsPath) {
                     .moveInto(DataPool))
     return std::move(E);
 
-  return std::unique_ptr<LuxonCAS>(
-      new LuxonCAS(AbsPath, std::move(*Index), std::move(*DataPool)));
+  return std::unique_ptr<LuxonStore>(
+      new LuxonStore(AbsPath, std::move(*Index), std::move(*DataPool)));
 }
 
-LuxonCAS::LuxonCAS(StringRef RootPath, OnDiskHashMappedTrie Index,
-                   OnDiskDataAllocator DataPool)
+LuxonStore::LuxonStore(StringRef RootPath, OnDiskHashMappedTrie Index,
+                       OnDiskDataAllocator DataPool)
     : Index(std::move(Index)), DataPool(std::move(DataPool)),
       RootPath(RootPath.str()) {
   SmallString<128> Temp = RootPath;
@@ -2040,33 +2044,22 @@ LuxonCAS::LuxonCAS(StringRef RootPath, OnDiskHashMappedTrie Index,
   TempPrefix = Temp.str().str();
 }
 
-Expected<std::unique_ptr<ObjectStore>> cas::createLuxonCAS(const Twine &Path) {
-  // FIXME: An absolute path isn't really good enough. Should open a directory
-  // and use openat() for files underneath.
-  SmallString<256> AbsPath;
-  Path.toVector(AbsPath);
-  sys::fs::make_absolute(AbsPath);
-
-  return LuxonCAS::open(AbsPath);
-}
-
 LuxonCASContext::HashType LuxonCASContext::hashObject(const ObjectStore &CAS,
                                                       ArrayRef<ObjectRef> Refs,
-                                                      ArrayRef<char> Data) {
+                                                      StringRef Data) {
   SmallVector<ArrayRef<uint8_t>, 64> Hashes;
   for (const ObjectRef &Ref : Refs) {
-    ArrayRef<uint8_t> Hash = static_cast<const LuxonCAS &>(CAS).getHash(Ref);
+    ArrayRef<uint8_t> Hash = static_cast<const LuxonStore &>(CAS).getHash(Ref);
     assert(Hash.size() == sizeof(HashType) &&
            "Expected object ref to match the hash size");
     Hashes.push_back(Hash);
   }
-  return hashObjectWithHashes(CAS, Hashes, Data);
+  return hashObjectWithHashes(Hashes, Data);
 }
 
 LuxonCASContext::HashType
-LuxonCASContext::hashObjectWithHashes(const ObjectStore &CAS,
-                                      ArrayRef<ArrayRef<uint8_t>> Hashes,
-                                      ArrayRef<char> Data) {
+LuxonCASContext::hashObjectWithHashes(ArrayRef<ArrayRef<uint8_t>> Hashes,
+                                      StringRef Data) {
   blake2b_state State;
   llvm_blake2b_init(&State, 64);
   for (ArrayRef<uint8_t> Hash : Hashes) {
@@ -2082,63 +2075,188 @@ LuxonCASContext::hashObjectWithHashes(const ObjectStore &CAS,
   return Hash;
 }
 
-uint64_t cas::luxon_ObjectStore_getInternalRef(ObjectStore &CAS,
-                                               ObjectRef Ref) {
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.getInternalRef(Ref).getRawData();
+//===----------------------------------------------------------------------===//
+// LuxonCAS
+//===----------------------------------------------------------------------===//
+
+Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::create(const Twine &Path) {
+  // FIXME: An absolute path isn't really good enough. Should open a directory
+  // and use openat() for files underneath.
+  SmallString<256> AbsPath;
+  Path.toVector(AbsPath);
+  sys::fs::make_absolute(AbsPath);
+
+  Expected<std::unique_ptr<LuxonStore>> Store = LuxonStore::open(AbsPath);
+  if (!Store)
+    return Store.takeError();
+
+  std::unique_ptr<LuxonCAS> CAS = std::make_unique<LuxonCAS>();
+  CAS->Impl = Store->release();
+  return CAS;
 }
 
-ObjectRef cas::luxon_ObjectStore_getObjectRefFromInternal(ObjectStore &CAS,
-                                                          uint64_t RawData) {
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.getExternalReference(InternalRef::getFromRawData(RawData));
+LuxonCAS::~LuxonCAS() { delete static_cast<LuxonStore *>(Impl); }
+
+void LuxonCAS::printID(DigestRef ID, raw_ostream &OS) {
+  return LuxonCASContext::printID(OS, ID);
 }
 
-ArrayRef<uint8_t> cas::luxon_ObjectStore_getHash(ObjectStore &CAS,
-                                                 ObjectRef Ref) {
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.getHash(Ref);
+Expected<DigestTy> LuxonCAS::parseID(StringRef ID) {
+  return LuxonCASContext::rawParseID(ID);
 }
 
-Expected<ObjectRef>
-cas::luxon_ObjectStore_createRefFromHash(ObjectStore &CAS,
-                                         ArrayRef<uint8_t> Hash) {
-  if (Hash.size() != sizeof(HashType))
+DigestTy LuxonCAS::digestObject(StringRef Data, ArrayRef<DigestRef> Refs) {
+  return LuxonCASContext::hashObjectWithHashes(Refs, Data);
+}
+
+static ObjectRef objectRefFromObjectID(const ObjectID &ID, LuxonStore &Store) {
+  return Store.getExternalReference(
+      InternalRef::getFromRawData(ID.getOpaqueRef()));
+}
+
+static ObjectID objectIDFromObjectRef(const ObjectRef &Ref, LuxonStore &Store,
+                                      LuxonCAS &CAS) {
+  return ObjectID::fromOpaqueRef(Store.getInternalRef(Ref).getRawData(), CAS);
+}
+
+Expected<ObjectID> LuxonCAS::getID(DigestRef Digest) {
+  if (Digest.size() != sizeof(DigestTy))
     return createStringError(errc::invalid_argument,
                              "incompatible hash size, got " +
-                                 utostr(Hash.size()) + " expected " +
-                                 utostr(sizeof(HashType)));
+                                 utostr(Digest.size()) + " expected " +
+                                 utostr(sizeof(DigestTy)));
 
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.createRefFromHash(Hash);
+  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  ObjectRef Ref = Store.createRefFromHash(Digest);
+  return objectIDFromObjectRef(Ref, Store, *this);
 }
 
-std::array<uint8_t, 65> cas::luxon_ObjectStore_objectDigest(
-    ObjectStore &CAS, ArrayRef<ArrayRef<uint8_t>> Hashes, ArrayRef<char> Data) {
-  return LuxonCASContext::hashObjectWithHashes(CAS, Hashes, Data);
+ObjectID LuxonCAS::getIDFromDigests(StringRef Data, ArrayRef<DigestRef> Refs) {
+  return cantFail(getID(LuxonCAS::digestObject(Data, Refs)));
 }
 
-ObjectRef cas::luxon_ObjectStore_refDigest(ObjectStore &CAS,
-                                           ArrayRef<ObjectRef> Refs,
-                                           ArrayRef<char> Data) {
-  HashType Hash = LuxonCASContext::hashObject(CAS, Refs, Data);
-  return cantFail(luxon_ObjectStore_createRefFromHash(CAS, Hash));
+ObjectID LuxonCAS::getID(StringRef Data, ArrayRef<ObjectID> Refs) {
+  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+
+  SmallVector<ObjectRef, 64> ORefs;
+  ORefs.reserve(Refs.size());
+  for (const ObjectID &ID : Refs) {
+    assert(ID.CAS == this);
+    ORefs.push_back(objectRefFromObjectID(ID, Store));
+  }
+  return cantFail(getID(LuxonCASContext::hashObject(Store, ORefs, Data)));
 }
 
-bool cas::luxon_ObjectStore_containsRef(ObjectStore &CAS, ObjectRef Ref) {
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.containsRef(Ref);
+bool LuxonCAS::containsObject(const ObjectID &ID) {
+  assert(ID.CAS == this);
+  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  ObjectRef Ref = objectRefFromObjectID(ID, Store);
+  return Store.containsRef(Ref);
 }
 
-Expected<Optional<ObjectProxy>> cas::luxon_ObjectStore_load(ObjectStore &CAS,
-                                                            ObjectRef Ref) {
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.loadProxy(Ref);
+Expected<Optional<LoadedObject>> LuxonCAS::load(const ObjectID &ID) {
+  assert(ID.CAS == this);
+  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  ObjectRef Ref = objectRefFromObjectID(ID, Store);
+  Expected<Optional<ObjectHandle>> Obj = Store.loadObject(Ref);
+  if (!Obj)
+    return Obj.takeError();
+  if (!*Obj)
+    return std::nullopt;
+  return LoadedObject::fromOpaqueRef((*Obj)->getInternalRef(Store), *this);
 }
 
-Error cas::luxon_ObjectStore_storeForRef(ObjectStore &CAS, ObjectRef Ref,
-                                         ArrayRef<ObjectRef> Refs,
-                                         ArrayRef<char> Data) {
-  LuxonCAS &LuxCAS = static_cast<LuxonCAS &>(CAS);
-  return LuxCAS.storeForRef(Ref, Refs, Data);
+Expected<ObjectID> LuxonCAS::store(StringRef Data, ArrayRef<ObjectID> Refs) {
+  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+
+  SmallVector<ObjectRef, 64> ORefs;
+  ORefs.reserve(Refs.size());
+  for (const ObjectID &ID : Refs) {
+    assert(ID.CAS == this);
+    ORefs.push_back(objectRefFromObjectID(ID, Store));
+  }
+  Expected<ObjectRef> StoredRef =
+      Store.store(ORefs, arrayRefFromStringRef<char>(Data));
+  if (!StoredRef)
+    return StoredRef.takeError();
+  return objectIDFromObjectRef(*StoredRef, Store, *this);
+}
+
+Error LuxonCAS::storeForKnownID(const ObjectID &KnownID, StringRef Data,
+                                ArrayRef<ObjectID> Refs) {
+  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+
+  assert(KnownID.CAS == this);
+  ObjectRef KnownRef = objectRefFromObjectID(KnownID, Store);
+
+  SmallVector<ObjectRef, 64> ORefs;
+  ORefs.reserve(Refs.size());
+  for (const ObjectID &ID : Refs) {
+    assert(ID.CAS == this);
+    ORefs.push_back(objectRefFromObjectID(ID, Store));
+  }
+  return Store.storeForRef(KnownRef, ORefs, arrayRefFromStringRef<char>(Data));
+}
+
+DigestRef ObjectID::getDigest() const {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  return Store.getHash(objectRefFromObjectID(*this, Store));
+}
+
+void ObjectID::print(raw_ostream &OS) const {
+  return CAS->printID(getDigest(), OS);
+}
+
+std::string ObjectID::getAsString() const {
+  SmallString<90> Digest;
+  raw_svector_ostream OS(Digest);
+  print(OS);
+  return OS.str().str();
+}
+
+static ObjectHandle objectHandleFromLoadedObject(const LoadedObject &LoadedObj,
+                                                 LuxonStore &Store) {
+  return Store.getLoadedObjectFromRawData(LoadedObj.getOpaqueRef());
+}
+
+StringRef LoadedObject::getData() const {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
+  ArrayRef<char> Data = Store.getDataConst(H);
+  return StringRef(Data.data(), Data.size());
+}
+
+size_t LoadedObject::getNumReferences() const {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
+  return Store.getNumRefs(H);
+}
+
+ObjectID LoadedObject::getReference(size_t I) {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
+  return objectIDFromObjectRef(Store.readRef(H, I), Store, *CAS);
+}
+
+void LoadedObject::forEachReference(
+    function_ref<void(ObjectID, size_t Index)> Callback) {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
+  unsigned I = 0;
+  cantFail(Store.forEachRef(H, [&](ObjectRef Ref) -> Error {
+    ObjectID ID = objectIDFromObjectRef(Ref, Store, *CAS);
+    Callback(ID, I++);
+    return Error::success();
+  }));
+}
+
+Expected<std::unique_ptr<ObjectStore>>
+cas::createLuxonObjectStore(const Twine &Path) {
+  // FIXME: An absolute path isn't really good enough. Should open a directory
+  // and use openat() for files underneath.
+  SmallString<256> AbsPath;
+  Path.toVector(AbsPath);
+  sys::fs::make_absolute(AbsPath);
+
+  return LuxonStore::open(AbsPath);
 }

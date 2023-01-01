@@ -23,7 +23,7 @@
 #include "llvm/ExecutionEngine/JITLink/MachO_x86_64.h"
 #include "llvm/Luxon/FileBackedCAS.h"
 #include "llvm/Luxon/LMDBCAS.h"
-#include "llvm/Luxon/Luxon.h"
+#include "llvm/Luxon/LuxonObjectStore.h"
 #include "llvm/Luxon/SQLiteCAS.h"
 #include "llvm/MC/CAS/MCCASObjectV1.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"

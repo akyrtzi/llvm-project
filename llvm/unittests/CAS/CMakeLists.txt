@@ -24,7 +24,7 @@ add_llvm_unittest(CASTests
   CASProvidingFileSystemTest.cpp
   CachingOnDiskFileSystemTest.cpp
   LazyAtomicPointerTest.cpp
-  LuxonStoreTest.cpp
+  LuxonCASTest.cpp
   HashMappedTrieTest.cpp
   HierarchicalTreeBuilderTest.cpp
   MockGRPCServer.cpp

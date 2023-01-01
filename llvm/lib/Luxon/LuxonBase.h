@@ -8,6 +8,9 @@ namespace llvm::cas {
 class ObjectRef;
 class ObjectStore;
 
+Expected<std::unique_ptr<ObjectStore>>
+createLuxonObjectStore(const Twine &Path);
+
 class LuxonCASContext : public CASContext {
   void printIDImpl(raw_ostream &OS, const CASID &ID) const final;
 
@@ -19,10 +22,9 @@ public:
   static void printID(raw_ostream &OS, ArrayRef<uint8_t> ID);
 
   static HashType hashObject(const ObjectStore &CAS, ArrayRef<ObjectRef> Refs,
-                             ArrayRef<char> Data);
-  static HashType hashObjectWithHashes(const ObjectStore &CAS,
-                                       ArrayRef<ArrayRef<uint8_t>> Hashes,
-                                       ArrayRef<char> Data);
+                             StringRef Data);
+  static HashType hashObjectWithHashes(ArrayRef<ArrayRef<uint8_t>> Hashes,
+                                       StringRef Data);
 
   static StringRef getHashName() { return "BLAKE2b"; }
   StringRef getHashSchemaIdentifier() const final {

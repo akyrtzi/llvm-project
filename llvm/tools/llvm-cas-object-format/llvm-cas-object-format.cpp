@@ -23,6 +23,7 @@
 #include "llvm/ExecutionEngine/JITLink/MachO_x86_64.h"
 #include "llvm/Luxon/FileBackedCAS.h"
 #include "llvm/Luxon/LMDBCAS.h"
+#include "llvm/Luxon/LuxonCAS.h"
 #include "llvm/Luxon/LuxonObjectStore.h"
 #include "llvm/Luxon/SQLiteCAS.h"
 #include "llvm/MC/CAS/MCCASObjectV1.h"
@@ -42,6 +43,7 @@
 
 using namespace llvm;
 using namespace llvm::cas;
+using namespace llvm::cas::luxon;
 using namespace llvm::casobjectformats;
 
 #ifndef NDEBUG
@@ -86,6 +88,7 @@ cl::opt<bool> IsFileList("file-list",
                                   "CASIDs, instead of a CASID"));
 cl::opt<bool> WalkTree("walk", cl::desc("Walk the CAS tree, hashing data"));
 cl::opt<bool> PrintStats("print-stats", cl::desc("Print walk stats"));
+cl::opt<bool> Direct("direct", cl::desc("direct"));
 
 cl::opt<std::string>
     IngestSchemaName("ingest-schema",
@@ -965,6 +968,34 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
     return Error::success();
   };
 
+  auto walkLuxCAS = [&TotalData, &TotalNodes](StringRef CASID,
+                                              LuxonCAS &CAS) -> Error {
+    uint64_t FileData = 0;
+    uint64_t FileNodes = 0;
+
+    ObjectID Root = cantFail(CAS.getID(cantFail(CAS.parseID(CASID))));
+    std::deque<ObjectID> WorkQueue;
+    WorkQueue.push_back(Root);
+
+    while (!WorkQueue.empty()) {
+      ++FileNodes;
+      ObjectID Ref = WorkQueue.front();
+      WorkQueue.pop_front();
+      auto Obj = CAS.load(Ref);
+      if (!Obj)
+        return Obj.takeError();
+      StringRef Data = (*Obj)->getData();
+      FileData += Data.size();
+      for (ObjectID ID : (*Obj)->refs_range()) {
+        WorkQueue.push_back(ID);
+      }
+    }
+
+    TotalData += FileData;
+    TotalNodes += FileNodes;
+    return Error::success();
+  };
+
   auto walkObjectStore = [&TotalData, &TotalNodes](ObjectRef Root,
                                                    ObjectStore &CAS) -> Error {
     uint64_t FileData = 0;
@@ -994,6 +1025,12 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
     return Error::success();
   };
 
+  std::unique_ptr<LuxonCAS> LuxCAS;
+  if (CASPath.startswith("luxon://")) {
+    ExitOnError ExitOnErr;
+    LuxCAS = ExitOnErr(LuxonCAS::create(CASPath.substr(strlen("luxon://"))));
+  }
+
   std::unique_ptr<FileBackedCAS> FBCAS;
   if (CASPath.startswith("luxfile://")) {
     ExitOnError ExitOnErr;
@@ -1022,9 +1059,11 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
     if (!CASIDBuf)
       ExitOnErr(errorCodeToError(CASIDBuf.getError()));
 
-    if (FBCAS || LMCAS || !SQLitePath.empty()) {
+    if ((Direct && LuxCAS) || FBCAS || LMCAS || !SQLitePath.empty()) {
       std::string CASID = ExitOnErr(rawReadCASIDBuffer(**CASIDBuf));
-      if (FBCAS) {
+      if (LuxCAS) {
+        ExitOnErr(walkLuxCAS(CASID, *LuxCAS));
+      } else if (FBCAS) {
         ExitOnErr(walkAlternativeDB(CASID, *FBCAS));
       } else if (LMCAS) {
         ExitOnErr(walkAlternativeDB(CASID, *LMCAS));

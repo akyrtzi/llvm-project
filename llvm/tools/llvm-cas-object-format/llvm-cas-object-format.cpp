@@ -27,7 +27,6 @@
 #include "llvm/Luxon/SQLiteCAS.h"
 #include "llvm/MC/CAS/MCCASObjectV1.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
-#include "llvm/Support/BLAKE3.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileOutputBuffer.h"
@@ -944,7 +943,6 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
     uint64_t FileData = 0;
     uint64_t FileNodes = 0;
 
-    BLAKE3 hasher;
     std::deque<DataID> WorkQueue;
     WorkQueue.push_back(*Root);
 
@@ -956,7 +954,6 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
       if (!Obj)
         return Obj.takeError();
       StringRef Data = (*Obj)->Data;
-      hasher.update(Data);
       FileData += Data.size();
       for (const DataID &ID : (*Obj)->Refs) {
         WorkQueue.push_back(ID);
@@ -973,7 +970,6 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
     uint64_t FileData = 0;
     uint64_t FileNodes = 0;
 
-    BLAKE3 hasher;
     std::deque<ObjectRef> WorkQueue;
     WorkQueue.push_back(Root);
 
@@ -985,7 +981,6 @@ static Error walkObjectsFromFileList(ArrayRef<StringRef> Paths,
       if (!Obj)
         return Obj.takeError();
       StringRef Data = Obj->getData();
-      hasher.update(Data);
       FileData += Data.size();
       if (Error E = Obj->forEachReference([&WorkQueue](ObjectRef Sub) -> Error {
             WorkQueue.push_back(Sub);

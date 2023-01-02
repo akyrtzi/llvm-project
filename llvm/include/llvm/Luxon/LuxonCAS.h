@@ -12,25 +12,23 @@ class LuxonCAS;
 
 class ObjectID {
   uint64_t Opaque;
-  LuxonCAS *CAS;
 
-  ObjectID(uint64_t OpaqueRef, LuxonCAS &CAS) : Opaque(OpaqueRef), CAS(&CAS) {}
-  friend class LuxonCAS;
+  ObjectID(uint64_t OpaqueRef) : Opaque(OpaqueRef) {}
 
 public:
-  static ObjectID fromOpaqueRef(uint64_t OpaqueRef, LuxonCAS &CAS) {
-    return ObjectID(OpaqueRef, CAS);
+  static ObjectID fromOpaqueRef(uint64_t OpaqueRef) {
+    return ObjectID(OpaqueRef);
   }
 
   uint64_t getOpaqueRef() const { return Opaque; }
 
-  DigestRef getDigest() const;
+  DigestRef getDigest(const LuxonCAS &CAS) const;
 
-  void print(raw_ostream &OS) const;
-  std::string getAsString() const;
+  void print(raw_ostream &OS, const LuxonCAS &CAS) const;
+  std::string getAsString(const LuxonCAS &CAS) const;
 
   friend bool operator==(const ObjectID &LHS, const ObjectID &RHS) {
-    return LHS.Opaque == RHS.Opaque && LHS.CAS == RHS.CAS;
+    return LHS.Opaque == RHS.Opaque;
   }
   friend bool operator!=(const ObjectID &LHS, const ObjectID &RHS) {
     return !(LHS == RHS);

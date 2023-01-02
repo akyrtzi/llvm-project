@@ -2123,9 +2123,8 @@ static ObjectRef objectRefFromObjectID(const ObjectID &ID, LuxonStore &Store) {
       InternalRef::getFromRawData(ID.getOpaqueRef()));
 }
 
-static ObjectID objectIDFromObjectRef(const ObjectRef &Ref, LuxonStore &Store,
-                                      LuxonCAS &CAS) {
-  return ObjectID::fromOpaqueRef(Store.getInternalRef(Ref).getRawData(), CAS);
+static ObjectID objectIDFromObjectRef(const ObjectRef &Ref, LuxonStore &Store) {
+  return ObjectID::fromOpaqueRef(Store.getInternalRef(Ref).getRawData());
 }
 
 Expected<ObjectID> LuxonCAS::getID(DigestRef Digest) {
@@ -2137,7 +2136,7 @@ Expected<ObjectID> LuxonCAS::getID(DigestRef Digest) {
 
   LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
   ObjectRef Ref = Store.createRefFromHash(Digest);
-  return objectIDFromObjectRef(Ref, Store, *this);
+  return objectIDFromObjectRef(Ref, Store);
 }
 
 ObjectID LuxonCAS::getIDFromDigests(StringRef Data, ArrayRef<DigestRef> Refs) {
@@ -2150,21 +2149,18 @@ ObjectID LuxonCAS::getID(StringRef Data, ArrayRef<ObjectID> Refs) {
   SmallVector<ObjectRef, 64> ORefs;
   ORefs.reserve(Refs.size());
   for (const ObjectID &ID : Refs) {
-    assert(ID.CAS == this);
     ORefs.push_back(objectRefFromObjectID(ID, Store));
   }
   return cantFail(getID(LuxonCASContext::hashObject(Store, ORefs, Data)));
 }
 
 bool LuxonCAS::containsObject(const ObjectID &ID) {
-  assert(ID.CAS == this);
   LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
   ObjectRef Ref = objectRefFromObjectID(ID, Store);
   return Store.containsRef(Ref);
 }
 
 Expected<Optional<LoadedObject>> LuxonCAS::load(const ObjectID &ID) {
-  assert(ID.CAS == this);
   LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
   ObjectRef Ref = objectRefFromObjectID(ID, Store);
   Expected<Optional<ObjectHandle>> Obj = Store.loadObject(Ref);
@@ -2181,45 +2177,42 @@ Expected<ObjectID> LuxonCAS::store(StringRef Data, ArrayRef<ObjectID> Refs) {
   SmallVector<ObjectRef, 64> ORefs;
   ORefs.reserve(Refs.size());
   for (const ObjectID &ID : Refs) {
-    assert(ID.CAS == this);
     ORefs.push_back(objectRefFromObjectID(ID, Store));
   }
   Expected<ObjectRef> StoredRef =
       Store.store(ORefs, arrayRefFromStringRef<char>(Data));
   if (!StoredRef)
     return StoredRef.takeError();
-  return objectIDFromObjectRef(*StoredRef, Store, *this);
+  return objectIDFromObjectRef(*StoredRef, Store);
 }
 
 Error LuxonCAS::storeForKnownID(const ObjectID &KnownID, StringRef Data,
                                 ArrayRef<ObjectID> Refs) {
   LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
 
-  assert(KnownID.CAS == this);
   ObjectRef KnownRef = objectRefFromObjectID(KnownID, Store);
 
   SmallVector<ObjectRef, 64> ORefs;
   ORefs.reserve(Refs.size());
   for (const ObjectID &ID : Refs) {
-    assert(ID.CAS == this);
     ORefs.push_back(objectRefFromObjectID(ID, Store));
   }
   return Store.storeForRef(KnownRef, ORefs, arrayRefFromStringRef<char>(Data));
 }
 
-DigestRef ObjectID::getDigest() const {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+DigestRef ObjectID::getDigest(const LuxonCAS &CAS) const {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS.Impl);
   return Store.getHash(objectRefFromObjectID(*this, Store));
 }
 
-void ObjectID::print(raw_ostream &OS) const {
-  return CAS->printID(getDigest(), OS);
+void ObjectID::print(raw_ostream &OS, const LuxonCAS &CAS) const {
+  return CAS.printID(getDigest(CAS), OS);
 }
 
-std::string ObjectID::getAsString() const {
+std::string ObjectID::getAsString(const LuxonCAS &CAS) const {
   SmallString<90> Digest;
   raw_svector_ostream OS(Digest);
-  print(OS);
+  print(OS, CAS);
   return OS.str().str();
 }
 
@@ -2244,7 +2237,7 @@ size_t LoadedObject::getNumReferences() const {
 ObjectID LoadedObject::getReference(size_t I) {
   LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
-  return objectIDFromObjectRef(Store.readRef(H, I), Store, *CAS);
+  return objectIDFromObjectRef(Store.readRef(H, I), Store);
 }
 
 void LoadedObject::forEachReference(
@@ -2253,7 +2246,7 @@ void LoadedObject::forEachReference(
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
   unsigned I = 0;
   cantFail(Store.forEachRef(H, [&](ObjectRef Ref) -> Error {
-    ObjectID ID = objectIDFromObjectRef(Ref, Store, *CAS);
+    ObjectID ID = objectIDFromObjectRef(Ref, Store);
     Callback(ID, I++);
     return Error::success();
   }));
@@ -2264,7 +2257,7 @@ ObjectID LoadedObject::refs_iterator::operator*() const {
   InternalRefArrayRef::iterator InternalI =
       InternalRefArrayRef::iterator::fromOpaqueValue(Opaque);
   ObjectRef Ref = Store.getExternalReference(*InternalI);
-  return objectIDFromObjectRef(Ref, Store, *CAS);
+  return objectIDFromObjectRef(Ref, Store);
 }
 
 ptrdiff_t

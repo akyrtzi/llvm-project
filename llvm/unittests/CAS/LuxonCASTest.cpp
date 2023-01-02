@@ -19,7 +19,7 @@ TEST(LuxonCASTest, Extensions) {
   ASSERT_TRUE(Obj1.has_value());
   EXPECT_EQ(Obj1->getData(), "hello");
 
-  DigestRef Digest1 = ID1->getDigest();
+  DigestRef Digest1 = ID1->getDigest(*CAS);
   Optional<ObjectID> ID2;
   ASSERT_THAT_ERROR(CAS->getID(Digest1).moveInto(ID2), Succeeded());
   EXPECT_EQ(ID1, ID2);

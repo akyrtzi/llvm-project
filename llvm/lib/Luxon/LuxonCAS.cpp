@@ -373,11 +373,10 @@ public:
                                     const InternalRef> {
   public:
     bool operator==(const iterator &RHS) const { return I == RHS.I; }
-    const InternalRef &operator*() const {
+    InternalRef operator*() const {
       if (auto *Ref = I.dyn_cast<const InternalRef *>())
         return *Ref;
-      LocalProxyFor4B = InternalRef(*I.get<const InternalRef4B *>());
-      return *LocalProxyFor4B;
+      return InternalRef(*I.get<const InternalRef4B *>());
     }
     bool operator<(const iterator &RHS) const {
       if (I == RHS.I)
@@ -416,7 +415,18 @@ public:
       return *this;
     }
 
+    InternalRef operator[](ptrdiff_t n) const { return *operator+(n); }
+
     iterator() = default;
+
+    uint64_t getOpaqueValue() const { return uintptr_t(I.getOpaqueValue()); }
+
+    static iterator fromOpaqueValue(uint64_t Opaque) {
+      return iterator(
+          PointerUnion<const InternalRef *,
+                       const InternalRef4B *>::getFromOpaqueValue((void *)
+                                                                      Opaque));
+    }
 
   private:
     friend class InternalRefArrayRef;
@@ -424,7 +434,6 @@ public:
         PointerUnion<const InternalRef *, const InternalRef4B *> I)
         : I(I) {}
     PointerUnion<const InternalRef *, const InternalRef4B *> I;
-    mutable Optional<InternalRef> LocalProxyFor4B;
   };
 
   bool operator==(const InternalRefArrayRef &RHS) const {
@@ -438,7 +447,7 @@ public:
   ///
   /// Returns a reference proxy to avoid lifetime issues, since a reference
   /// derived from a InternalRef4B lives inside the iterator.
-  iterator::ReferenceProxy operator[](ptrdiff_t N) const { return begin()[N]; }
+  InternalRef operator[](ptrdiff_t N) const { return begin()[N]; }
 
   bool is4B() const { return Begin.is<const InternalRef4B *>(); }
   bool is8B() const { return Begin.is<const InternalRef *>(); }
@@ -1022,13 +1031,13 @@ public:
   Error forEachRef(ObjectHandle Node,
                    function_ref<Error(ObjectRef)> Callback) const final;
 
-private:
   InternalRefArrayRef getRefs(ObjectHandle Node) const {
     if (Optional<DataRecordHandle> Record = getDataRecordForObject(Node))
       return Record->getRefs();
     return std::nullopt;
   }
 
+private:
   Expected<std::unique_ptr<MemoryBuffer>> openFile(StringRef Path);
   Expected<std::unique_ptr<MemoryBuffer>> openFileWithID(StringRef BaseDir,
                                                          CASID ID);
@@ -2248,6 +2257,41 @@ void LoadedObject::forEachReference(
     Callback(ID, I++);
     return Error::success();
   }));
+}
+
+ObjectID LoadedObject::refs_iterator::operator*() const {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  InternalRefArrayRef::iterator InternalI =
+      InternalRefArrayRef::iterator::fromOpaqueValue(Opaque);
+  ObjectRef Ref = Store.getExternalReference(*InternalI);
+  return objectIDFromObjectRef(Ref, Store, *CAS);
+}
+
+ptrdiff_t
+LoadedObject::refs_iterator::operator-(const refs_iterator &RHS) const {
+  InternalRefArrayRef::iterator ThisI =
+      InternalRefArrayRef::iterator::fromOpaqueValue(Opaque);
+  InternalRefArrayRef::iterator RHSI =
+      InternalRefArrayRef::iterator::fromOpaqueValue(RHS.Opaque);
+  return ThisI - RHSI;
+}
+
+LoadedObject::refs_iterator &
+LoadedObject::refs_iterator::operator+=(ptrdiff_t N) {
+  InternalRefArrayRef::iterator InternalI =
+      InternalRefArrayRef::iterator::fromOpaqueValue(Opaque);
+  InternalI += N;
+  this->Opaque = InternalI.getOpaqueValue();
+  return *this;
+}
+
+iterator_range<LoadedObject::refs_iterator> LoadedObject::refs_range() const {
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
+  InternalRefArrayRef Refs = Store.getRefs(H);
+  refs_iterator B(Refs.begin().getOpaqueValue(), CAS);
+  refs_iterator E(Refs.end().getOpaqueValue(), CAS);
+  return {B, E};
 }
 
 Expected<std::unique_ptr<ObjectStore>>

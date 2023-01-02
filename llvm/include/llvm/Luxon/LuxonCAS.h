@@ -57,6 +57,27 @@ public:
   ObjectID getReference(size_t I);
   void forEachReference(function_ref<void(ObjectID, size_t Index)> Callback);
 
+  class refs_iterator
+      : public iterator_facade_base<refs_iterator,
+                                    std::random_access_iterator_tag, ObjectID> {
+    uint64_t Opaque;
+    LuxonCAS *CAS;
+
+  public:
+    refs_iterator(uint64_t Opaque, LuxonCAS *CAS) : Opaque(Opaque), CAS(CAS) {}
+
+    uint64_t getOpaqueValue() const { return Opaque; }
+
+    bool operator==(const refs_iterator &R) const { return Opaque == R.Opaque; }
+
+    ObjectID operator*() const;
+
+    ptrdiff_t operator-(const refs_iterator &RHS) const;
+    refs_iterator &operator+=(ptrdiff_t N);
+  };
+
+  iterator_range<refs_iterator> refs_range() const;
+
   friend bool operator==(const LoadedObject &LHS, const LoadedObject &RHS) {
     return LHS.Opaque == RHS.Opaque && LHS.CAS == RHS.CAS;
   }

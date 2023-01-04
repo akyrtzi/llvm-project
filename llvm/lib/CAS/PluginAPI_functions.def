@@ -1,0 +1,22 @@
+
+// Format is Name/required. If 'required' is true then loading will fail if the symbol is missing,
+// otherwise loading will continue and the function pointer will be null.
+
+CASPLUGINAPI_FUNCTION(digest_parse, true)
+CASPLUGINAPI_FUNCTION(digest_print, true)
+CASPLUGINAPI_FUNCTION(cas_options_create, true)
+CASPLUGINAPI_FUNCTION(cas_options_dispose, true)
+CASPLUGINAPI_FUNCTION(cas_options_parse, true)
+CASPLUGINAPI_FUNCTION(cas_create, true)
+CASPLUGINAPI_FUNCTION(cas_dispose, true)
+CASPLUGINAPI_FUNCTION(string_dispose, true)
+CASPLUGINAPI_FUNCTION(cas_get_objectid, true)
+CASPLUGINAPI_FUNCTION(objectid_get_digest, true)
+CASPLUGINAPI_FUNCTION(objectid_print_digest, true)
+CASPLUGINAPI_FUNCTION(cas_load_object, true)
+CASPLUGINAPI_FUNCTION(cas_store_object, true)
+CASPLUGINAPI_FUNCTION(loaded_object_get_data, true)
+CASPLUGINAPI_FUNCTION(loaded_object_get_refs_range, true)
+CASPLUGINAPI_FUNCTION(refs_iterator_offset, true)
+CASPLUGINAPI_FUNCTION(refs_iterator_distance, true)
+CASPLUGINAPI_FUNCTION(refs_iterator_get_id, true)

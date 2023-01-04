@@ -332,6 +332,8 @@ private:
 Expected<std::unique_ptr<ObjectStore>>
 createPluginCAS(StringRef PluginPath,
                 ArrayRef<std::string> PluginArgs = std::nullopt);
+Expected<std::unique_ptr<ObjectStore>>
+createPluginCASFromPathAndOptions(const Twine &PathAndOptions);
 std::unique_ptr<ObjectStore> createInMemoryCAS();
 
 /// Gets or creates a persistent on-disk path at \p Path.

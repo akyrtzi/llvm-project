@@ -13,4 +13,6 @@ static constexpr StringLiteral LuxonCASScheme = "luxon://";
 void cas::registerLuxonCAS() {
   cas::registerCASURLScheme(LuxonCASScheme, &createLuxonObjectStore);
   cas::registerActionCacheURLScheme(LuxonCASScheme, &createLuxonActionCache);
+  cas::registerActionCacheURLScheme("plugin://",
+                                    &createPluginActionCacheFromPathAndOptions);
 }

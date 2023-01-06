@@ -129,3 +129,28 @@ Expected<std::unique_ptr<ActionCache>>
 cas::createLuxonActionCache(StringRef Path) {
   return LuxonActionCache::create(Path);
 }
+
+Expected<std::unique_ptr<ActionCache>>
+cas::createPluginActionCache(StringRef LibraryPath,
+                             ArrayRef<std::string> PluginArgs) {
+  for (StringRef Opt : PluginArgs) {
+    auto [Name, Value] = Opt.split('=');
+    if (Name == "cas-path")
+      return createLuxonActionCache(Value);
+  }
+  return createStringError(inconvertibleErrorCode(),
+                           "plugin action-cache: missing 'cas-path' option");
+}
+
+Expected<std::unique_ptr<ActionCache>>
+cas::createPluginActionCacheFromPathAndOptions(StringRef PathAndOptions) {
+  auto [Path, URLOpts] = PathAndOptions.split('?');
+
+  SmallVector<StringRef, 10> Opts;
+  URLOpts.split(Opts, '&');
+  SmallVector<std::string, 10> OptsStr;
+  for (StringRef Opt : Opts)
+    OptsStr.push_back(Opt.str());
+
+  return createPluginActionCache(Path, OptsStr);
+}

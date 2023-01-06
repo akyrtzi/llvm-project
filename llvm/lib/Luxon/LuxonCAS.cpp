@@ -213,7 +213,7 @@ Error LuxonStoreBase::validate(const CASID &ID) {
   if (!Handle)
     return Handle.takeError();
 
-  auto Proxy = ObjectProxy::load(*this, *Handle);
+  auto Proxy = ObjectProxy::load(*this, *Ref, *Handle);
   SmallVector<ObjectRef> Refs;
   if (auto E = Proxy.forEachReference([&](ObjectRef Ref) -> Error {
         Refs.push_back(Ref);

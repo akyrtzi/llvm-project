@@ -274,7 +274,7 @@ class ObjectProxy {
 public:
   const ObjectStore &getCAS() const { return *CAS; }
   ObjectStore &getCAS() { return *CAS; }
-  CASID getID() const { return CAS->getID(H); }
+  CASID getID() const { return CAS->getID(Ref); }
   ObjectRef getRef() const { return Ref; }
   size_t getNumReferences() const { return CAS->getNumRefs(H); }
   ObjectRef getReference(size_t I) const { return CAS->readRef(H, I); }

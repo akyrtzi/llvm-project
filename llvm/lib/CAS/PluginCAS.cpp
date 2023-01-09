@@ -6,8 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/CAS/PluginCAS.h"
 #include "PluginAPI.h"
 #include "llvm/ADT/ScopeExit.h"
+#include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
 #include <dlfcn.h>
 
@@ -32,7 +34,7 @@ private:
   PluginCAS &CAS;
 };
 
-class PluginCAS : public ObjectStore {
+class PluginCAS : public ObjectStore, public ActionCache {
 public:
   //===--------------------------------------------------------------------===//
   // ObjectStore API
@@ -63,12 +65,19 @@ public:
                         Optional<sys::fs::file_status> Status) final;
 
   //===--------------------------------------------------------------------===//
+  // ActionCache API
+  //===--------------------------------------------------------------------===//
+
+  Expected<Optional<CASID>> getImpl(ArrayRef<uint8_t> ResolvedKey) const final;
+  Error putImpl(ArrayRef<uint8_t> ResolvedKey, const CASID &Result) final;
+
+  //===--------------------------------------------------------------------===//
   // PluginCAS API
   //===--------------------------------------------------------------------===//
 
   void printID(const CASID &ID, raw_ostream &OS) const;
 
-  static Expected<std::unique_ptr<PluginCAS>>
+  static Expected<std::shared_ptr<PluginCAS>>
   create(StringRef LibraryPath, ArrayRef<std::string> PluginArgs);
 
   PluginCAS();
@@ -94,6 +103,10 @@ private:
 };
 
 } // anonymous namespace
+
+//===----------------------------------------------------------------------===//
+// ObjectStore API
+//===----------------------------------------------------------------------===//
 
 Expected<CASID> PluginCAS::parseID(StringRef ID) {
   SmallString<91> IDBuf(ID);
@@ -123,7 +136,7 @@ Expected<CASID> PluginCAS::parseID(StringRef ID) {
     BytesBuf.resize(*NumBytes);
   }
 
-  return CASID::create(&getContext(), toStringRef(BytesBuf));
+  return CASID::create(&ObjectStore::getContext(), toStringRef(BytesBuf));
 }
 
 Expected<ObjectRef> PluginCAS::store(ArrayRef<ObjectRef> Refs,
@@ -151,12 +164,12 @@ static StringRef toStringRef(llcasplug_digest_t c_digest) {
 CASID PluginCAS::getID(ObjectRef Ref) const {
   llcasplug_objectid_t c_id{Ref.getInternalRef(*this)};
   llcasplug_digest_t c_digest = Functions.objectid_get_digest(c_cas, c_id);
-  return CASID::create(&getContext(), toStringRef(c_digest));
+  return CASID::create(&ObjectStore::getContext(), toStringRef(c_digest));
 }
 
 CASID PluginCAS::getID(ObjectHandle Handle) const {
   // FIXME: Remove getID(ObjectHandle) from API requirement.
-  report_fatal_error("not implemented");
+  report_fatal_error("PluginCAS::getID(ObjectHandle) not implemented");
 }
 
 Optional<ObjectRef> PluginCAS::getReference(const CASID &ID) const {
@@ -171,7 +184,7 @@ Optional<ObjectRef> PluginCAS::getReference(const CASID &ID) const {
 
 ObjectRef PluginCAS::getReference(ObjectHandle Handle) const {
   // FIXME: Remove getReference(ObjectHandle) from API requirement.
-  report_fatal_error("not implemented");
+  report_fatal_error("PluginCAS::getReference(ObjectHandle) not implemented");
 }
 
 Expected<ObjectHandle> PluginCAS::load(ObjectRef Ref) {
@@ -241,8 +254,85 @@ Expected<ObjectRef>
 PluginCAS::storeFromOpenFileImpl(sys::fs::file_t FD,
                                  Optional<sys::fs::file_status> Status) {
   // FIXME: Remove storeFromOpenFileImpl from API requirement.
-  report_fatal_error("not implemented");
+
+  if (!Status) {
+    Status.emplace();
+    if (std::error_code EC = sys::fs::status(FD, *Status))
+      return errorCodeToError(EC);
+  }
+
+  constexpr size_t MinMappedSize = 4 * 4096;
+  auto readWithStream = [&]() -> Expected<ObjectRef> {
+    // FIXME: MSVC: SmallString<MinMappedSize * 2>
+    SmallString<4 * 4096 * 2> Data;
+    if (Error E = sys::fs::readNativeFileToEOF(FD, Data, MinMappedSize))
+      return std::move(E);
+    return store(std::nullopt, makeArrayRef(Data.data(), Data.size()));
+  };
+
+  // Check whether we can trust the size from stat.
+  if (Status->type() != sys::fs::file_type::regular_file &&
+      Status->type() != sys::fs::file_type::block_file)
+    return readWithStream();
+
+  if (Status->getSize() < MinMappedSize)
+    return readWithStream();
+
+  std::error_code EC;
+  sys::fs::mapped_file_region Map(FD, sys::fs::mapped_file_region::readonly,
+                                  Status->getSize(),
+                                  /*offset=*/0, EC);
+  if (EC)
+    return errorCodeToError(EC);
+
+  ArrayRef<char> Data(Map.data(), Map.size());
+  return store({}, Data);
 }
+
+//===----------------------------------------------------------------------===//
+// ActionCache API
+//===----------------------------------------------------------------------===//
+
+Expected<Optional<CASID>>
+PluginCAS::getImpl(ArrayRef<uint8_t> ResolvedKey) const {
+  llcasplug_objectid_t c_value;
+  char *c_err = nullptr;
+  llcasplug_load_result_t c_result = Functions.actioncache_get_for_digest(
+      c_cas, llcasplug_digest_t{ResolvedKey.data(), ResolvedKey.size()},
+      &c_value,
+      /*upstream=*/false, &c_err);
+  switch (c_result) {
+  case LLCASPLUG_LOAD_RESULT_SUCCESS: {
+    ObjectRef Value = ObjectRef::getFromInternalRef(*this, c_value.opaque);
+    return getID(Value);
+  }
+  case LLCASPLUG_LOAD_RESULT_NOTFOUND:
+    return std::nullopt;
+  case LLCASPLUG_LOAD_RESULT_ERROR:
+    return errorWithConsumed(c_err);
+  }
+}
+
+Error PluginCAS::putImpl(ArrayRef<uint8_t> ResolvedKey, const CASID &Result) {
+  ArrayRef<uint8_t> Hash = Result.getHash();
+  llcasplug_objectid_t c_value;
+  char *c_err = nullptr;
+  if (Functions.cas_get_objectid(c_cas,
+                                 llcasplug_digest_t{Hash.data(), Hash.size()},
+                                 &c_value, &c_err))
+    report_fatal_error(toString(errorWithConsumed(c_err)).c_str());
+
+  if (Functions.actioncache_put_for_digest(
+          c_cas, llcasplug_digest_t{ResolvedKey.data(), ResolvedKey.size()},
+          c_value, /*upstream*/ false, &c_err))
+    return errorWithConsumed(c_err);
+
+  return Error::success();
+}
+
+//===----------------------------------------------------------------------===//
+// PluginCAS API
+//===----------------------------------------------------------------------===//
 
 void PluginCAS::printID(const CASID &ID, raw_ostream &OS) const {
   ArrayRef<uint8_t> Hash = ID.getHash();
@@ -259,7 +349,8 @@ void PluginCASContext::printIDImpl(raw_ostream &OS, const CASID &ID) const {
   CAS.printID(ID, OS);
 }
 
-PluginCAS::PluginCAS() : ObjectStore(Context), Context(*this) {}
+PluginCAS::PluginCAS()
+    : ObjectStore(Context), ActionCache(Context), Context(*this) {}
 
 PluginCAS::~PluginCAS() {
   Functions.cas_dispose(c_cas);
@@ -267,7 +358,7 @@ PluginCAS::~PluginCAS() {
   // be unsafe.
 }
 
-Expected<std::unique_ptr<PluginCAS>>
+Expected<std::shared_ptr<PluginCAS>>
 PluginCAS::create(StringRef LibraryPath, ArrayRef<std::string> PluginArgs) {
   auto reportError = [LibraryPath](const Twine &Description) -> Error {
     return createStringError(inconvertibleErrorCode(),
@@ -306,23 +397,25 @@ PluginCAS::create(StringRef LibraryPath, ArrayRef<std::string> PluginArgs) {
   if (!c_cas)
     return errorFromCMessage(c_err, Functions);
 
-  auto CAS = std::make_unique<PluginCAS>();
+  auto CAS = std::make_shared<PluginCAS>();
   CAS->DLHandle = DLHandle;
   CAS->Functions = Functions;
   CAS->c_cas = c_cas;
   return CAS;
 }
 
-Expected<std::unique_ptr<ObjectStore>>
+Expected<std::pair<std::shared_ptr<ObjectStore>, std::shared_ptr<ActionCache>>>
 cas::createPluginCAS(StringRef LibraryPath, ArrayRef<std::string> PluginArgs) {
-  return PluginCAS::create(LibraryPath, PluginArgs);
+  auto CASAndCache = PluginCAS::create(LibraryPath, PluginArgs);
+  if (!CASAndCache)
+    return CASAndCache.takeError();
+  return std::make_pair(std::shared_ptr<ObjectStore>(*CASAndCache),
+                        std::shared_ptr<ActionCache>(*CASAndCache));
 }
 
-Expected<std::unique_ptr<ObjectStore>>
-cas::createPluginCASFromPathAndOptions(const Twine &PathAndOptions) {
-  SmallString<256> Buf;
-  PathAndOptions.toVector(Buf);
-  auto [Path, URLOpts] = Buf.str().split('?');
+Expected<std::pair<std::shared_ptr<ObjectStore>, std::shared_ptr<ActionCache>>>
+cas::createPluginCASFromPathAndOptions(StringRef PathAndOptions) {
+  auto [Path, URLOpts] = PathAndOptions.split('?');
 
   SmallVector<StringRef, 10> Opts;
   URLOpts.split(Opts, '&');

@@ -106,11 +106,20 @@ public:
   Error storeForKnownID(const ObjectID &KnownID, StringRef Data,
                         ArrayRef<ObjectID> Refs);
 
+  Expected<std::optional<ObjectID>> cacheGet(DigestRef Key);
+  Error cachePut(DigestRef Key, ObjectID Value);
+
+  Expected<bool> cacheGetMap(DigestRef Key,
+                             function_ref<void(StringRef, ObjectID)> Callback);
+  Error cachePutMap(DigestRef Key,
+                    ArrayRef<std::pair<StringRef, ObjectID>> Values);
+
 private:
   friend class LoadedObject;
   friend class ObjectID;
 
-  void *Impl; // a \p LuxonStore.
+  void *StoreImpl; // a \p LuxonStore.
+  void *CacheImpl; // a \p LuxonActionCache.
 };
 
 } // namespace llvm::cas::luxon

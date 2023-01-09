@@ -63,6 +63,13 @@ typedef enum {
   LLCASPLUG_LOAD_RESULT_ERROR = 2,
 } llcasplug_load_result_t;
 
+typedef struct {
+  const char *name;
+  llcasplug_objectid_t objid;
+} llcasplug_map_entry;
+
+typedef void (*llcasplug_map_visitor)(void *ctx, llcasplug_map_entry);
+
 LLCASPLUG_PUBLIC unsigned llcasplug_digest_parse(const char *printed_digest,
                                                  uint8_t *bytes,
                                                  size_t bytes_size,
@@ -122,6 +129,25 @@ LLCASPLUG_PUBLIC ptrdiff_t llcasplug_refs_iterator_distance(
 
 LLCASPLUG_PUBLIC llcasplug_objectid_t
     llcasplug_refs_iterator_get_id(llcasplug_cas_t, llcasplug_refs_iterator_t);
+
+LLCASPLUG_PUBLIC llcasplug_load_result_t llcasplug_actioncache_get_for_digest(
+    llcasplug_cas_t, llcasplug_digest_t key, llcasplug_objectid_t *p_value,
+    bool upstream, char **error);
+
+LLCASPLUG_PUBLIC bool
+llcasplug_actioncache_put_for_digest(llcasplug_cas_t, llcasplug_digest_t key,
+                                     llcasplug_objectid_t value, bool upstream,
+                                     char **error);
+
+LLCASPLUG_PUBLIC llcasplug_load_result_t
+llcasplug_actioncache_get_map_for_digest(llcasplug_cas_t,
+                                         llcasplug_digest_t key, void *ctx,
+                                         llcasplug_map_visitor, bool upstream,
+                                         char **error);
+
+LLCASPLUG_PUBLIC bool llcasplug_actioncache_put_map_for_digest(
+    llcasplug_cas_t, llcasplug_digest_t key, const llcasplug_map_entry *entries,
+    size_t entries_count, bool upstream, char **error);
 
 LLCASPLUG_END_DECLS
 

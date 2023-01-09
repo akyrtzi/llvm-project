@@ -121,7 +121,6 @@ static StringMap<ObjectStoreCreateFuncTy *> &getRegisteredScheme() {
   if (!RegisteredScheme.isConstructed()) {
     RegisteredScheme->insert({"mem://", &createInMemoryCASImpl});
     RegisteredScheme->insert({"file://", &createOnDiskCAS});
-    RegisteredScheme->insert({"plugin://", &createPluginCASFromPathAndOptions});
   }
   return *RegisteredScheme;
 }

@@ -203,3 +203,62 @@ llcasplug_refs_iterator_get_id(llcasplug_cas_t c_cas,
   ObjectID Ref = *RefsI;
   return llcasplug_objectid_t{Ref.getOpaqueRef()};
 }
+
+llcasplug_load_result_t llcasplug_actioncache_get_for_digest(
+    llcasplug_cas_t c_cas, llcasplug_digest_t key,
+    llcasplug_objectid_t *p_value, bool upstream, char **error) {
+  auto &CAS = *static_cast<LuxonCAS *>(c_cas);
+  Expected<std::optional<ObjectID>> Value =
+      CAS.cacheGet(makeArrayRef(key.data, key.size));
+  if (!Value)
+    return reportError(Value.takeError(), error, LLCASPLUG_LOAD_RESULT_ERROR);
+  if (!*Value)
+    return LLCASPLUG_LOAD_RESULT_NOTFOUND;
+  *p_value = llcasplug_objectid_t{(*Value)->getOpaqueRef()};
+  return LLCASPLUG_LOAD_RESULT_SUCCESS;
+}
+
+bool llcasplug_actioncache_put_for_digest(llcasplug_cas_t c_cas,
+                                          llcasplug_digest_t key,
+                                          llcasplug_objectid_t value,
+                                          bool upstream, char **error) {
+  auto &CAS = *static_cast<LuxonCAS *>(c_cas);
+  if (Error E = CAS.cachePut(makeArrayRef(key.data, key.size),
+                             ObjectID::fromOpaqueRef(value.opaque)))
+    return reportError(std::move(E), error, true);
+  return false;
+}
+
+llcasplug_load_result_t llcasplug_actioncache_get_map_for_digest(
+    llcasplug_cas_t c_cas, llcasplug_digest_t key, void *ctx,
+    llcasplug_map_visitor c_visitor, bool upstream, char **error) {
+  auto &CAS = *static_cast<LuxonCAS *>(c_cas);
+  Expected<bool> Found = CAS.cacheGetMap(
+      makeArrayRef(key.data, key.size),
+      [ctx, c_visitor](StringRef Name, ObjectID ID) {
+        SmallString<60> NameBuf(Name);
+        llcasplug_map_entry c_entry{NameBuf.c_str(),
+                                    llcasplug_objectid_t{ID.getOpaqueRef()}};
+        c_visitor(ctx, c_entry);
+      });
+  if (!Found)
+    return reportError(Found.takeError(), error, LLCASPLUG_LOAD_RESULT_ERROR);
+  return *Found ? LLCASPLUG_LOAD_RESULT_SUCCESS
+                : LLCASPLUG_LOAD_RESULT_NOTFOUND;
+}
+
+bool llcasplug_actioncache_put_map_for_digest(
+    llcasplug_cas_t c_cas, llcasplug_digest_t key,
+    const llcasplug_map_entry *c_entries, size_t c_entries_count, bool upstream,
+    char **error) {
+  auto &CAS = *static_cast<LuxonCAS *>(c_cas);
+  SmallVector<std::pair<StringRef, ObjectID>, 6> Entries;
+  Entries.reserve(c_entries_count);
+  for (unsigned I = 0; I != c_entries_count; ++I) {
+    Entries.push_back({c_entries[I].name,
+                       ObjectID::fromOpaqueRef(c_entries[I].objid.opaque)});
+  }
+  if (Error E = CAS.cachePutMap(makeArrayRef(key.data, key.size), Entries))
+    return reportError(std::move(E), error, true);
+  return false;
+}

@@ -20,3 +20,8 @@ CASPLUGINAPI_FUNCTION(loaded_object_get_refs_range, true)
 CASPLUGINAPI_FUNCTION(refs_iterator_offset, true)
 CASPLUGINAPI_FUNCTION(refs_iterator_distance, true)
 CASPLUGINAPI_FUNCTION(refs_iterator_get_id, true)
+
+CASPLUGINAPI_FUNCTION(actioncache_get_for_digest, true)
+CASPLUGINAPI_FUNCTION(actioncache_put_for_digest, true)
+CASPLUGINAPI_FUNCTION(actioncache_get_map_for_digest, true)
+CASPLUGINAPI_FUNCTION(actioncache_put_map_for_digest, true)

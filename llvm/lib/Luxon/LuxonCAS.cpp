@@ -2,8 +2,10 @@
 #include "LuxonBase.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerUnion.h"
+#include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CAS/OnDiskHashMappedTrie.h"
+#include "llvm/Luxon/LuxonActionCache.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/Base64.h"
 #include "llvm/Support/Debug.h"
@@ -2099,12 +2101,21 @@ Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::create(const Twine &Path) {
   if (!Store)
     return Store.takeError();
 
+  Expected<std::unique_ptr<ActionCache>> Cache =
+      createLuxonActionCache(AbsPath);
+  if (!Cache)
+    return Cache.takeError();
+
   std::unique_ptr<LuxonCAS> CAS = std::make_unique<LuxonCAS>();
-  CAS->Impl = Store->release();
+  CAS->StoreImpl = Store->release();
+  CAS->CacheImpl = Cache->release();
   return CAS;
 }
 
-LuxonCAS::~LuxonCAS() { delete static_cast<LuxonStore *>(Impl); }
+LuxonCAS::~LuxonCAS() {
+  delete static_cast<LuxonStore *>(StoreImpl);
+  delete static_cast<ActionCache *>(CacheImpl);
+}
 
 void LuxonCAS::printID(DigestRef ID, raw_ostream &OS) {
   return LuxonCASContext::printID(OS, ID);
@@ -2134,7 +2145,7 @@ Expected<ObjectID> LuxonCAS::getID(DigestRef Digest) {
                                  utostr(Digest.size()) + " expected " +
                                  utostr(sizeof(DigestTy)));
 
-  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(StoreImpl);
   ObjectRef Ref = Store.createRefFromHash(Digest);
   return objectIDFromObjectRef(Ref, Store);
 }
@@ -2144,7 +2155,7 @@ ObjectID LuxonCAS::getIDFromDigests(StringRef Data, ArrayRef<DigestRef> Refs) {
 }
 
 ObjectID LuxonCAS::getID(StringRef Data, ArrayRef<ObjectID> Refs) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(StoreImpl);
 
   SmallVector<ObjectRef, 64> ORefs;
   ORefs.reserve(Refs.size());
@@ -2155,13 +2166,13 @@ ObjectID LuxonCAS::getID(StringRef Data, ArrayRef<ObjectID> Refs) {
 }
 
 bool LuxonCAS::containsObject(const ObjectID &ID) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(StoreImpl);
   ObjectRef Ref = objectRefFromObjectID(ID, Store);
   return Store.containsRef(Ref);
 }
 
 Expected<Optional<LoadedObject>> LuxonCAS::load(const ObjectID &ID) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(StoreImpl);
   ObjectRef Ref = objectRefFromObjectID(ID, Store);
   Expected<Optional<ObjectHandle>> Obj = Store.loadObject(Ref);
   if (!Obj)
@@ -2172,7 +2183,7 @@ Expected<Optional<LoadedObject>> LuxonCAS::load(const ObjectID &ID) {
 }
 
 Expected<ObjectID> LuxonCAS::store(StringRef Data, ArrayRef<ObjectID> Refs) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(StoreImpl);
 
   SmallVector<ObjectRef, 64> ORefs;
   ORefs.reserve(Refs.size());
@@ -2188,7 +2199,7 @@ Expected<ObjectID> LuxonCAS::store(StringRef Data, ArrayRef<ObjectID> Refs) {
 
 Error LuxonCAS::storeForKnownID(const ObjectID &KnownID, StringRef Data,
                                 ArrayRef<ObjectID> Refs) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(StoreImpl);
 
   ObjectRef KnownRef = objectRefFromObjectID(KnownID, Store);
 
@@ -2201,7 +2212,7 @@ Error LuxonCAS::storeForKnownID(const ObjectID &KnownID, StringRef Data,
 }
 
 DigestRef ObjectID::getDigest(const LuxonCAS &CAS) const {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS.Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS.StoreImpl);
   return Store.getHash(objectRefFromObjectID(*this, Store));
 }
 
@@ -2222,27 +2233,27 @@ static ObjectHandle objectHandleFromLoadedObject(const LoadedObject &LoadedObj,
 }
 
 StringRef LoadedObject::getData() const {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->StoreImpl);
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
   ArrayRef<char> Data = Store.getDataConst(H);
   return StringRef(Data.data(), Data.size());
 }
 
 size_t LoadedObject::getNumReferences() const {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->StoreImpl);
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
   return Store.getNumRefs(H);
 }
 
 ObjectID LoadedObject::getReference(size_t I) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->StoreImpl);
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
   return objectIDFromObjectRef(Store.readRef(H, I), Store);
 }
 
 void LoadedObject::forEachReference(
     function_ref<void(ObjectID, size_t Index)> Callback) {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->StoreImpl);
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
   unsigned I = 0;
   cantFail(Store.forEachRef(H, [&](ObjectRef Ref) -> Error {
@@ -2253,7 +2264,7 @@ void LoadedObject::forEachReference(
 }
 
 ObjectID LoadedObject::refs_iterator::operator*() const {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->StoreImpl);
   InternalRefArrayRef::iterator InternalI =
       InternalRefArrayRef::iterator::fromOpaqueValue(Opaque);
   ObjectRef Ref = Store.getExternalReference(*InternalI);
@@ -2279,7 +2290,7 @@ LoadedObject::refs_iterator::operator+=(ptrdiff_t N) {
 }
 
 iterator_range<LoadedObject::refs_iterator> LoadedObject::refs_range() const {
-  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->Impl);
+  LuxonStore &Store = *static_cast<LuxonStore *>(CAS->StoreImpl);
   ObjectHandle H = objectHandleFromLoadedObject(*this, Store);
   InternalRefArrayRef Refs = Store.getRefs(H);
   refs_iterator B(Refs.begin().getOpaqueValue(), CAS);

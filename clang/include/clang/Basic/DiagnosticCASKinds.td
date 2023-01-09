@@ -14,6 +14,8 @@ def err_builtin_cas_cannot_be_initialized : Error<
 def err_builtin_actioncache_cannot_be_initialized : Error<
   "ActionCache cannot be initialized from '%0' on disk (check -faction-cache-path)">,
   DefaultFatal;
+def err_plugin_cas_cannot_be_initialized : Error<
+  "plugin CAS cannot be initialized: %0">, DefaultFatal;
 def err_cas_cannot_parse_root_id : Error<
   "CAS cannot parse root-id '%0' specified by -fcas-fs">, DefaultFatal;
 def err_cas_filesystem_cannot_be_initialized : Error<

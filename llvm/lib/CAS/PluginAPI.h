@@ -42,6 +42,13 @@ typedef enum {
 } llcasplug_load_result_t;
 
 typedef struct {
+  const char *name;
+  llcasplug_objectid_t objid;
+} llcasplug_map_entry;
+
+typedef void (*llcasplug_map_visitor)(void *ctx, llcasplug_map_entry);
+
+typedef struct {
   unsigned (*digest_parse)(const char *printed_digest, uint8_t *bytes,
                            size_t bytes_size, char **error);
 
@@ -93,6 +100,28 @@ typedef struct {
 
   llcasplug_objectid_t (*refs_iterator_get_id)(llcasplug_cas_t,
                                                llcasplug_refs_iterator_t);
+
+  /*===--------------------------------------------------------------------===*\
+  |* Action cache API
+  \*===--------------------------------------------------------------------===*/
+
+  llcasplug_load_result_t (*actioncache_get_for_digest)(
+      llcasplug_cas_t, llcasplug_digest_t key, llcasplug_objectid_t *p_value,
+      bool upstream, char **error);
+
+  bool (*actioncache_put_for_digest)(llcasplug_cas_t, llcasplug_digest_t key,
+                                     llcasplug_objectid_t value, bool upstream,
+                                     char **error);
+
+  llcasplug_load_result_t (*actioncache_get_map_for_digest)(
+      llcasplug_cas_t, llcasplug_digest_t key, void *ctx, llcasplug_map_visitor,
+      bool upstream, char **error);
+
+  bool (*actioncache_put_map_for_digest)(llcasplug_cas_t,
+                                         llcasplug_digest_t key,
+                                         const llcasplug_map_entry *entries,
+                                         size_t entries_count, bool upstream,
+                                         char **error);
 
 } llcasplug_functions_t;
 

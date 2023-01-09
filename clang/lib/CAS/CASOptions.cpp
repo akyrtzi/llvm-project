@@ -11,6 +11,7 @@
 #include "clang/Basic/DiagnosticCAS.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
+#include "llvm/CAS/PluginCAS.h"
 #include "llvm/RemoteCachingService/RemoteCachingService.h"
 #include "llvm/Support/Error.h"
 
@@ -133,6 +134,21 @@ void CASOptions::initCache(DiagnosticsEngine &Diags) const {
     return;
 
   Cache.Config = CurrentConfig;
+
+  static llvm::StringLiteral PluginScheme = "plugin://";
+  if (StringRef(Cache.Config.CASPath).startswith(PluginScheme)) {
+    auto PluginImpls = createPluginCASFromPathAndOptions(
+        StringRef(Cache.Config.CASPath).substr(PluginScheme.size()));
+    if (!PluginImpls) {
+      Diags.Report(diag::err_plugin_cas_cannot_be_initialized)
+          << toString(PluginImpls.takeError());
+      return;
+    }
+    Cache.CAS = std::move(PluginImpls->first);
+    Cache.AC = std::move(PluginImpls->second);
+    return;
+  }
+
   Cache.CAS = createObjectStore(Cache.Config, Diags);
   Cache.AC = createCache(*Cache.CAS, Cache.Config, Diags);
 }

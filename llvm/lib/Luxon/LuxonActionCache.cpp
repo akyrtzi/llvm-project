@@ -2,25 +2,26 @@
 #include "LuxonBase.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/OnDiskHashMappedTrie.h"
+#include "llvm/Luxon/LuxonCAS.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/Path.h"
 
 using namespace llvm;
 using namespace llvm::cas;
+using namespace llvm::cas::luxon;
 
 namespace {
 
 using HashType = LuxonCASContext::HashType;
 
-template <size_t Size> class CacheEntry {
+class CacheEntry {
 public:
   CacheEntry() = default;
-  CacheEntry(ArrayRef<uint8_t> Hash) { llvm::copy(Hash, Value.data()); }
-  CacheEntry(const CacheEntry &Entry) { llvm::copy(Entry.Value, Value.data()); }
-  ArrayRef<uint8_t> getValue() const { return Value; }
+  CacheEntry(ObjectID Value) : Value(Value.getOpaqueRef()) {}
+  ObjectID getValue() const { return ObjectID::fromOpaqueRef(Value); }
 
 private:
-  std::array<uint8_t, Size> Value;
+  uint64_t Value;
 };
 
 class LuxonActionCache final : public ActionCache {
@@ -29,6 +30,9 @@ public:
   Expected<Optional<CASID>> getImpl(ArrayRef<uint8_t> ActionKey) const final;
 
   static Expected<std::unique_ptr<LuxonActionCache>> create(StringRef Path);
+
+  Error putLuxonImpl(ArrayRef<uint8_t> ActionKey, ObjectID Value);
+  Expected<Optional<ObjectID>> getLuxonImpl(ArrayRef<uint8_t> ActionKey) const;
 
 private:
   static StringRef getHashName() { return "BLAKE2b"; }
@@ -45,7 +49,7 @@ private:
 
   std::string Path;
   OnDiskHashMappedTrie Cache;
-  using DataT = CacheEntry<sizeof(HashType)>;
+  using DataT = CacheEntry;
 };
 } // end namespace
 
@@ -57,14 +61,12 @@ static std::string hashToString(ArrayRef<uint8_t> Hash) {
 
 static Error createResultCachePoisonedError(StringRef Key,
                                             const CASContext &Context,
-                                            CASID Output,
-                                            ArrayRef<uint8_t> ExistingOutput) {
-  std::string Existing =
-      CASID::create(&Context, toStringRef(ExistingOutput)).toString();
-  return createStringError(std::make_error_code(std::errc::invalid_argument),
-                           "cache poisoned for '" + Key + "' (new='" +
-                               Output.toString() + "' vs. existing '" +
-                               Existing + "')");
+                                            ObjectID Output,
+                                            ObjectID ExistingOutput) {
+  return createStringError(
+      std::make_error_code(std::errc::invalid_argument),
+      "cache poisoned for '" + Key + "' (new='" + Twine(Output.getOpaqueRef()) +
+          "' vs. existing '" + Twine(ExistingOutput.getOpaqueRef()) + "')");
 }
 
 constexpr StringLiteral LuxonActionCache::ActionCacheFile;
@@ -98,17 +100,26 @@ LuxonActionCache::create(StringRef AbsPath) {
 
 Expected<Optional<CASID>>
 LuxonActionCache::getImpl(ArrayRef<uint8_t> Key) const {
+  report_fatal_error("LuxonActionCache::getImpl: not implemented");
+}
+
+Error LuxonActionCache::putImpl(ArrayRef<uint8_t> Key, const CASID &Result) {
+  report_fatal_error("LuxonActionCache::putImpl: not implemented");
+}
+
+Expected<Optional<ObjectID>>
+LuxonActionCache::getLuxonImpl(ArrayRef<uint8_t> Key) const {
   // Check the result cache.
   OnDiskHashMappedTrie::const_pointer ActionP = Cache.find(Key);
   if (!ActionP)
     return std::nullopt;
 
   const DataT *Output = reinterpret_cast<const DataT *>(ActionP->Data.data());
-  return CASID::create(&getContext(), toStringRef(Output->getValue()));
+  return Output->getValue();
 }
 
-Error LuxonActionCache::putImpl(ArrayRef<uint8_t> Key, const CASID &Result) {
-  DataT Expected(Result.getHash());
+Error LuxonActionCache::putLuxonImpl(ArrayRef<uint8_t> Key, ObjectID Result) {
+  DataT Expected(Result);
   OnDiskHashMappedTrie::pointer ActionP = Cache.insertLazy(
       Key, [&](FileOffset TentativeOffset,
                OnDiskHashMappedTrie::ValueProxy TentativeValue) {
@@ -130,27 +141,57 @@ cas::createLuxonActionCache(StringRef Path) {
   return LuxonActionCache::create(Path);
 }
 
-Expected<std::unique_ptr<ActionCache>>
-cas::createPluginActionCache(StringRef LibraryPath,
-                             ArrayRef<std::string> PluginArgs) {
-  for (StringRef Opt : PluginArgs) {
-    auto [Name, Value] = Opt.split('=');
-    if (Name == "cas-path")
-      return createLuxonActionCache(Value);
-  }
-  return createStringError(inconvertibleErrorCode(),
-                           "plugin action-cache: missing 'cas-path' option");
+Expected<std::optional<ObjectID>> LuxonCAS::cacheGet(DigestRef Key) {
+  LuxonActionCache &Cache = *static_cast<LuxonActionCache *>(CacheImpl);
+  return Cache.getLuxonImpl(Key);
 }
 
-Expected<std::unique_ptr<ActionCache>>
-cas::createPluginActionCacheFromPathAndOptions(StringRef PathAndOptions) {
-  auto [Path, URLOpts] = PathAndOptions.split('?');
+Error LuxonCAS::cachePut(DigestRef Key, ObjectID Value) {
+  LuxonActionCache &Cache = *static_cast<LuxonActionCache *>(CacheImpl);
+  return Cache.putLuxonImpl(Key, Value);
+}
 
-  SmallVector<StringRef, 10> Opts;
-  URLOpts.split(Opts, '&');
-  SmallVector<std::string, 10> OptsStr;
-  for (StringRef Opt : Opts)
-    OptsStr.push_back(Opt.str());
+Expected<bool>
+LuxonCAS::cacheGetMap(DigestRef Key,
+                      function_ref<void(StringRef, ObjectID)> Callback) {
+  Expected<std::optional<ObjectID>> Result = cacheGet(Key);
+  if (!Result)
+    return Result.takeError();
+  if (!*Result)
+    return false;
 
-  return createPluginActionCache(Path, OptsStr);
+  Expected<Optional<LoadedObject>> Obj = load(**Result);
+  if (!Obj)
+    return Obj.takeError();
+
+  StringRef RemainingNamesBuf = (*Obj)->getData();
+  (*Obj)->forEachReference(
+      [&RemainingNamesBuf, &Callback](ObjectID ID, size_t) {
+        StringRef Name = RemainingNamesBuf.data();
+        assert(!Name.empty());
+        Callback(Name, ID);
+        assert(Name.size() < RemainingNamesBuf.size());
+        assert(RemainingNamesBuf[Name.size()] == 0);
+        RemainingNamesBuf = RemainingNamesBuf.substr(Name.size() + 1);
+      });
+  return true;
+}
+
+Error LuxonCAS::cachePutMap(DigestRef Key,
+                            ArrayRef<std::pair<StringRef, ObjectID>> Values) {
+  SmallString<128> NamesBuf;
+  SmallVector<ObjectID, 6> Refs;
+  Refs.reserve(Values.size());
+  for (const auto &Value : Values) {
+    assert(!Value.first.empty());
+    NamesBuf += Value.first;
+    NamesBuf.push_back(0);
+    Refs.push_back(Value.second);
+  }
+
+  Expected<ObjectID> ID = store(NamesBuf.str(), Refs);
+  if (!ID)
+    return ID.takeError();
+
+  return cachePut(Key, *ID);
 }

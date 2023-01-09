@@ -9,7 +9,6 @@ endif()
 add_llvm_component_library(LLVMLuxon
   FileBackedCAS.cpp
   LMDBCAS.cpp
-  LuxonActionCache.cpp
   LuxonCAS.cpp
   LuxonObjectStore.cpp
   SQLiteCAS.cpp

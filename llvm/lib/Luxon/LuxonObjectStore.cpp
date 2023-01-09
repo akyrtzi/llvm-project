@@ -1,7 +1,6 @@
 #include "llvm/Luxon/LuxonObjectStore.h"
 #include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
-#include "llvm/Luxon/LuxonActionCache.h"
 #include "llvm/Luxon/LuxonCAS.h"
 #include "llvm/Support/Errc.h"
 
@@ -12,5 +11,4 @@ static constexpr StringLiteral LuxonCASScheme = "luxon://";
 
 void cas::registerLuxonCAS() {
   cas::registerCASURLScheme(LuxonCASScheme, &createLuxonObjectStore);
-  cas::registerActionCacheURLScheme(LuxonCASScheme, &createLuxonActionCache);
 }

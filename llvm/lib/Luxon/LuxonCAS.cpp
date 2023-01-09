@@ -2,10 +2,8 @@
 #include "LuxonBase.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "llvm/CAS/ActionCache.h"
 #include "llvm/CAS/ObjectStore.h"
 #include "llvm/CAS/OnDiskHashMappedTrie.h"
-#include "llvm/Luxon/LuxonActionCache.h"
 #include "llvm/Support/Alignment.h"
 #include "llvm/Support/Base64.h"
 #include "llvm/Support/Debug.h"
@@ -2090,6 +2088,12 @@ LuxonCASContext::hashObjectWithHashes(ArrayRef<ArrayRef<uint8_t>> Hashes,
 // LuxonCAS
 //===----------------------------------------------------------------------===//
 
+namespace {
+class LuxonActionCache;
+}
+static Expected<std::unique_ptr<LuxonActionCache>>
+createLuxonActionCache(StringRef Path);
+
 Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::create(const Twine &Path) {
   // FIXME: An absolute path isn't really good enough. Should open a directory
   // and use openat() for files underneath.
@@ -2101,7 +2105,7 @@ Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::create(const Twine &Path) {
   if (!Store)
     return Store.takeError();
 
-  Expected<std::unique_ptr<ActionCache>> Cache =
+  Expected<std::unique_ptr<LuxonActionCache>> Cache =
       createLuxonActionCache(AbsPath);
   if (!Cache)
     return Cache.takeError();
@@ -2110,11 +2114,6 @@ Expected<std::unique_ptr<LuxonCAS>> LuxonCAS::create(const Twine &Path) {
   CAS->StoreImpl = Store->release();
   CAS->CacheImpl = Cache->release();
   return CAS;
-}
-
-LuxonCAS::~LuxonCAS() {
-  delete static_cast<LuxonStore *>(StoreImpl);
-  delete static_cast<ActionCache *>(CacheImpl);
 }
 
 void LuxonCAS::printID(DigestRef ID, raw_ostream &OS) {
@@ -2307,4 +2306,176 @@ cas::createLuxonObjectStore(const Twine &Path) {
   sys::fs::make_absolute(AbsPath);
 
   return LuxonStore::open(AbsPath);
+}
+
+//===----------------------------------------------------------------------===//
+// LuxonActionCache
+//===----------------------------------------------------------------------===//
+
+namespace {
+
+class CacheEntry {
+public:
+  CacheEntry() = default;
+  CacheEntry(ObjectID Value) : Value(Value.getOpaqueRef()) {}
+  ObjectID getValue() const { return ObjectID::fromOpaqueRef(Value); }
+
+private:
+  uint64_t Value;
+};
+
+class LuxonActionCache {
+public:
+  static Expected<std::unique_ptr<LuxonActionCache>> create(StringRef Path);
+
+  Error put(ArrayRef<uint8_t> ActionKey, ObjectID Value);
+  Expected<Optional<ObjectID>> get(ArrayRef<uint8_t> ActionKey) const;
+
+private:
+  static StringRef getHashName() { return "BLAKE2b"; }
+  static StringRef getActionCacheTableName() {
+    static const std::string Name =
+        ("llvm.actioncache[" + getHashName() + "->" + getHashName() + "]")
+            .str();
+    return Name;
+  }
+  static constexpr StringLiteral ActionCacheFile = "actions";
+  static constexpr StringLiteral FilePrefix = "v1.";
+
+  LuxonActionCache(StringRef RootPath, OnDiskHashMappedTrie ActionCache);
+
+  std::string Path;
+  OnDiskHashMappedTrie Cache;
+  using DataT = CacheEntry;
+};
+} // end namespace
+
+static Error createResultCachePoisonedError(StringRef Key, ObjectID Output,
+                                            ObjectID ExistingOutput) {
+  return createStringError(
+      std::make_error_code(std::errc::invalid_argument),
+      "cache poisoned for '" + Key + "' (new='" + Twine(Output.getOpaqueRef()) +
+          "' vs. existing '" + Twine(ExistingOutput.getOpaqueRef()) + "')");
+}
+
+constexpr StringLiteral LuxonActionCache::ActionCacheFile;
+constexpr StringLiteral LuxonActionCache::FilePrefix;
+
+LuxonActionCache::LuxonActionCache(StringRef Path, OnDiskHashMappedTrie Cache)
+    : Path(Path.str()), Cache(std::move(Cache)) {}
+
+Expected<std::unique_ptr<LuxonActionCache>>
+LuxonActionCache::create(StringRef AbsPath) {
+  if (std::error_code EC = sys::fs::create_directories(AbsPath))
+    return createFileError(AbsPath, EC);
+
+  SmallString<256> CachePath(AbsPath);
+  sys::path::append(CachePath, FilePrefix + ActionCacheFile);
+  constexpr uint64_t MB = 1024ull * 1024ull;
+  constexpr uint64_t GB = 1024ull * 1024ull * 1024ull;
+
+  Optional<OnDiskHashMappedTrie> ActionCache;
+  if (Error E = OnDiskHashMappedTrie::create(
+                    CachePath, getActionCacheTableName(), sizeof(HashType) * 8,
+                    /*DataSize=*/sizeof(DataT), /*MaxFileSize=*/GB,
+                    /*MinFileSize=*/MB)
+                    .moveInto(ActionCache))
+    return std::move(E);
+
+  return std::unique_ptr<LuxonActionCache>(
+      new LuxonActionCache(AbsPath, std::move(*ActionCache)));
+}
+
+Expected<Optional<ObjectID>>
+LuxonActionCache::get(ArrayRef<uint8_t> Key) const {
+  // Check the result cache.
+  OnDiskHashMappedTrie::const_pointer ActionP = Cache.find(Key);
+  if (!ActionP)
+    return std::nullopt;
+
+  const DataT *Output = reinterpret_cast<const DataT *>(ActionP->Data.data());
+  return Output->getValue();
+}
+
+Error LuxonActionCache::put(ArrayRef<uint8_t> Key, ObjectID Result) {
+  DataT Expected(Result);
+  OnDiskHashMappedTrie::pointer ActionP = Cache.insertLazy(
+      Key, [&](FileOffset TentativeOffset,
+               OnDiskHashMappedTrie::ValueProxy TentativeValue) {
+        assert(TentativeValue.Data.size() == sizeof(DataT));
+        assert(isAddrAligned(Align::Of<DataT>(), TentativeValue.Data.data()));
+        new (TentativeValue.Data.data()) DataT{Expected};
+      });
+  const DataT *Observed = reinterpret_cast<const DataT *>(ActionP->Data.data());
+
+  if (Expected.getValue() == Observed->getValue())
+    return Error::success();
+
+  return createResultCachePoisonedError(sanitizedEncodeBase64(Key), Result,
+                                        Observed->getValue());
+}
+
+static Expected<std::unique_ptr<LuxonActionCache>>
+createLuxonActionCache(StringRef Path) {
+  return LuxonActionCache::create(Path);
+}
+
+Expected<std::optional<ObjectID>> LuxonCAS::cacheGet(DigestRef Key) {
+  LuxonActionCache &Cache = *static_cast<LuxonActionCache *>(CacheImpl);
+  return Cache.get(Key);
+}
+
+Error LuxonCAS::cachePut(DigestRef Key, ObjectID Value) {
+  LuxonActionCache &Cache = *static_cast<LuxonActionCache *>(CacheImpl);
+  return Cache.put(Key, Value);
+}
+
+Expected<bool>
+LuxonCAS::cacheGetMap(DigestRef Key,
+                      function_ref<void(StringRef, ObjectID)> Callback) {
+  Expected<std::optional<ObjectID>> Result = cacheGet(Key);
+  if (!Result)
+    return Result.takeError();
+  if (!*Result)
+    return false;
+
+  Expected<Optional<LoadedObject>> Obj = load(**Result);
+  if (!Obj)
+    return Obj.takeError();
+
+  StringRef RemainingNamesBuf = (*Obj)->getData();
+  (*Obj)->forEachReference(
+      [&RemainingNamesBuf, &Callback](ObjectID ID, size_t) {
+        StringRef Name = RemainingNamesBuf.data();
+        assert(!Name.empty());
+        Callback(Name, ID);
+        assert(Name.size() < RemainingNamesBuf.size());
+        assert(RemainingNamesBuf[Name.size()] == 0);
+        RemainingNamesBuf = RemainingNamesBuf.substr(Name.size() + 1);
+      });
+  return true;
+}
+
+Error LuxonCAS::cachePutMap(DigestRef Key,
+                            ArrayRef<std::pair<StringRef, ObjectID>> Values) {
+  SmallString<128> NamesBuf;
+  SmallVector<ObjectID, 6> Refs;
+  Refs.reserve(Values.size());
+  for (const auto &Value : Values) {
+    assert(!Value.first.empty());
+    NamesBuf += Value.first;
+    NamesBuf.push_back(0);
+    Refs.push_back(Value.second);
+  }
+
+  Expected<ObjectID> ID = store(NamesBuf.str(), Refs);
+  if (!ID)
+    return ID.takeError();
+
+  return cachePut(Key, *ID);
+}
+
+LuxonCAS::~LuxonCAS() {
+  delete static_cast<LuxonStore *>(StoreImpl);
+  delete static_cast<LuxonActionCache *>(CacheImpl);
 }

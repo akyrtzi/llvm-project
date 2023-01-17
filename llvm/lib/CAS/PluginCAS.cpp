@@ -46,7 +46,6 @@ public:
   CASID getID(ObjectRef Ref) const final;
   CASID getID(ObjectHandle Handle) const final;
   Optional<ObjectRef> getReference(const CASID &ID) const final;
-  ObjectRef getReference(ObjectHandle Handle) const final;
   Expected<ObjectHandle> load(ObjectRef Ref) final;
   Error validate(const CASID &ID) final {
     // Not supported yet. Always return success.
@@ -182,11 +181,6 @@ Optional<ObjectRef> PluginCAS::getReference(const CASID &ID) const {
   return ObjectRef::getFromInternalRef(*this, c_id.opaque);
 }
 
-ObjectRef PluginCAS::getReference(ObjectHandle Handle) const {
-  // FIXME: Remove getReference(ObjectHandle) from API requirement.
-  report_fatal_error("PluginCAS::getReference(ObjectHandle) not implemented");
-}
-
 Expected<ObjectHandle> PluginCAS::load(ObjectRef Ref) {
   llcasplug_objectid_t c_id{Ref.getInternalRef(*this)};
   llcasplug_loaded_object_t c_obj;
@@ -247,7 +241,7 @@ ArrayRef<char> PluginCAS::getData(ObjectHandle Node,
   // to always require it or not.
   llcasplug_data_t c_data = Functions.loaded_object_get_data(
       c_cas, llcasplug_loaded_object_t{Node.getInternalRef(*this)});
-  return makeArrayRef((const char *)c_data.data, c_data.size);
+  return ArrayRef((const char *)c_data.data, c_data.size);
 }
 
 Expected<ObjectRef>
@@ -267,7 +261,7 @@ PluginCAS::storeFromOpenFileImpl(sys::fs::file_t FD,
     SmallString<4 * 4096 * 2> Data;
     if (Error E = sys::fs::readNativeFileToEOF(FD, Data, MinMappedSize))
       return std::move(E);
-    return store(std::nullopt, makeArrayRef(Data.data(), Data.size()));
+    return store(std::nullopt, ArrayRef(Data.data(), Data.size()));
   };
 
   // Check whether we can trust the size from stat.

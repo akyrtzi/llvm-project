@@ -107,7 +107,7 @@ public:
   storeFromNullTerminatedRegion(ArrayRef<uint8_t> ComputedHash,
                                 sys::fs::mapped_file_region Map) {
     return storeImpl(ComputedHash, std::nullopt,
-                     makeArrayRef(Map.data(), Map.size()));
+                     ArrayRef(Map.data(), Map.size()));
   }
 
   /// Both builtin CAS implementations provide lifetime for free, so this can
@@ -168,7 +168,7 @@ LuxonStoreBase::storeFromOpenFileImpl(sys::fs::file_t FD,
     SmallString<4 * 4096 * 2> Data;
     if (Error E = sys::fs::readNativeFileToEOF(FD, Data, MinMappedSize))
       return std::move(E);
-    return store(std::nullopt, makeArrayRef(Data.data(), Data.size()));
+    return store(std::nullopt, ArrayRef(Data.data(), Data.size()));
   };
 
   // Check whether we can trust the size from stat.
@@ -455,12 +455,12 @@ public:
   ArrayRef<InternalRef> as8B() const {
     assert(is8B());
     auto *B = Begin.get<const InternalRef *>();
-    return makeArrayRef(B, Size);
+    return ArrayRef(B, Size);
   }
 
   ArrayRef<InternalRef4B> as4B() const {
     auto *B = Begin.get<const InternalRef4B *>();
-    return makeArrayRef(B, Size);
+    return ArrayRef(B, Size);
   }
 
   InternalRefArrayRef(std::nullopt_t = std::nullopt) {}
@@ -663,14 +663,14 @@ struct DataRecordHandle {
     if (!Size)
       return InternalRefArrayRef();
     if (getLayoutFlags().RefKind == RefKindFlags::InternalRef4B)
-      return makeArrayRef(reinterpret_cast<const InternalRef4B *>(BeginByte),
+      return ArrayRef(reinterpret_cast<const InternalRef4B *>(BeginByte),
                           Size);
-    return makeArrayRef(reinterpret_cast<const InternalRef *>(BeginByte), Size);
+    return ArrayRef(reinterpret_cast<const InternalRef *>(BeginByte), Size);
   }
 
   ArrayRef<char> getData() const {
     assert(H && "Expected valid handle");
-    return makeArrayRef(reinterpret_cast<const char *>(H) + getDataRelOffset(),
+    return ArrayRef(reinterpret_cast<const char *>(H) + getDataRelOffset(),
                         getDataSize());
   }
 
@@ -726,7 +726,7 @@ struct String2BHandle {
   StringRef getString() const { return toStringRef(getArray()); }
   ArrayRef<char> getArray() const {
     assert(H && "Expected valid handle");
-    return makeArrayRef(reinterpret_cast<const char *>(H + 1), getLength());
+    return ArrayRef(reinterpret_cast<const char *>(H + 1), getLength());
   }
 
   static String2BHandle create(function_ref<char *(size_t Size)> Alloc,
@@ -1001,9 +1001,6 @@ public:
   ObjectRef createRefFromHash(ArrayRef<uint8_t> Hash);
 
   Optional<ObjectRef> getReference(const CASID &ID) const final;
-  ObjectRef getReference(ObjectHandle Handle) const final {
-    return getExternalReference(getInternalRef(getInternalHandle(Handle)));
-  }
 
   OnDiskHashMappedTrie::const_pointer
   getInternalIndexPointer(InternalRef Ref) const;
